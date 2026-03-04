@@ -23,6 +23,9 @@ new #[Layout('layouts.blank')] class extends Component
     public string $password_confirmation = '';
     public ?int $department_id = null;
 
+    // Added to track registration success
+    public bool $isRegistered = false;
+
     public function departments()
     {
         return Department::query()->orderBy('name')->get();
@@ -56,7 +59,9 @@ new #[Layout('layouts.blank')] class extends Component
         event(new Registered($user = User::create($validated)));
 
         $this->reset(['name', 'username', 'email', 'class', 'password', 'password_confirmation', 'department_id']);
-        $this->redirect(route('student.registration-success'));
+        
+        // Show success message instead of redirecting
+        $this->isRegistered = true;
     }
 }; ?>
 
@@ -70,13 +75,15 @@ new #[Layout('layouts.blank')] class extends Component
     @livewireStyles
     <style>
         :root {
+            /* Restored your original colors */
             --primary: #2652f1;
-            --primary-hover: #820404;
+            --primary-hover: #1e40af; 
             --secondary: #ec4899;
             --bg-color: #f4d9c3;
             --text-dark: #1f2937;
             --text-muted: #6b7280;
             --border-color: #e5e7eb;
+            --input-bg: #f9fafb;
         }
 
         * {
@@ -87,6 +94,7 @@ new #[Layout('layouts.blank')] class extends Component
         }
 
         body {
+            /* Restored your original background gradient */
             background: radial-gradient(circle at 10% 20%, #ffffff 0%, #fdebd3 35%, #f4d9c3 60%);
             min-height: 100vh;
             display: flex;
@@ -96,93 +104,47 @@ new #[Layout('layouts.blank')] class extends Component
             color: var(--text-dark);
         }
 
+        /* Perfect Proportions for the main card */
         .auth-wrapper {
             background: var(--bg-color);
             width: 100%;
-            max-width: 1200px;
-            min-height: 700px;
-            border-radius: 24px;
-            box-shadow: none;
-            display: grid;
-            grid-template-columns: 0.45fr 0.55fr;
+            max-width: 1000px;
+            min-height: 620px;
+            border-radius: 20px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+            display: flex;
+            flex-direction: row;
             overflow: hidden;
             position: relative;
         }
 
-        /* Left Side: Image */
+        /* Left Pane - Clear Image */
         .left-pane {
+            width: 50%;
             position: relative;
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-color: #0f172a;
-        }
-        .left-pane::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(180deg, rgba(17,24,39,0.35) 0%, rgba(17,24,39,0.45) 55%, rgba(17,24,39,0.5) 100%);
-        }
-        .left-pane-content {
-            position: relative;
-            z-index: 1;
-            color: #e5e7eb;
-            height: 100%;
-            padding: 2.5rem 2.25rem;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-        .left-pane-content .branding {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        .left-pane-content .branding img {
-            height: 56px;
-            width: 56px;
-            object-fit: contain;
-            border-radius: 10px;
-            background: #fff;
-            padding: 6px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-        .left-pane-content .headline {
-            margin-top: 1.8rem;
-        }
-        .left-pane-content h1 {
-            font-size: 1.75rem;
-            font-weight: 800;
-            color: #f8fafc;
-            margin-bottom: 0.35rem;
-        }
-        .left-pane-content p {
-            color: #cbd5e1;
-            line-height: 1.5;
-        }
-        .left-pane-content .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            padding: 0.35rem 0.8rem;
-            border-radius: 999px;
-            background: rgba(79, 70, 229, 0.25);
-            color: #e0e7ff;
-            font-weight: 600;
-            font-size: 0.9rem;
-            margin-top: 1.2rem;
+            background-color: #e5e7eb;
         }
 
-        /* Right Side: Forms */
+        .left-pane img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        /* Right Pane - Forms */
         .auth-forms {
-            padding: 3rem 3.25rem;
+            width: 50%;
+            padding: 3rem;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            position: relative;
-            background: transparent;
-            max-height: 850px;
+            background: var(--bg-color);
             overflow-y: auto;
+            max-height: 90vh;
         }
 
         .auth-forms::-webkit-scrollbar {
@@ -194,23 +156,46 @@ new #[Layout('layouts.blank')] class extends Component
         }
 
         .form-header {
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .form-header .logo-container img {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 12px;
+            background: #fff;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         }
 
         .form-header h1 {
-            font-size: 2rem;
+            font-size: 1.8rem;
             font-weight: 800;
             color: var(--text-dark);
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.1rem;
         }
 
         .form-header p {
             color: var(--text-muted);
-            font-size: 0.95rem;
+            font-size: 0.9rem;
+        }
+
+        /* Form Card Styling */
+        .form-card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.75rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+            width: 100%;
         }
 
         .input-group {
-            margin-bottom: 1.2rem;
+            margin-bottom: 1.1rem;
         }
 
         .input-group label {
@@ -227,16 +212,17 @@ new #[Layout('layouts.blank')] class extends Component
             border: 1.5px solid var(--border-color);
             border-radius: 10px;
             font-size: 0.95rem;
-            color: var(--text-dark);
+            color: #111827; /* Dark black text for readability */
+            font-weight: 500;
+            background-color: var(--input-bg);
             transition: all 0.3s ease;
-            background-color: #f9fafb;
         }
 
         input:focus, select:focus {
             outline: none;
             border-color: var(--primary);
             background-color: transparent;
-            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+            box-shadow: 0 0 0 4px rgba(38, 82, 241, 0.15);
         }
 
         select {
@@ -260,14 +246,15 @@ new #[Layout('layouts.blank')] class extends Component
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            margin-top: 1rem;
-            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+            margin-top: 0.5rem;
+            box-shadow: 0 4px 12px rgba(38, 82, 241, 0.2);
+            text-align: center;
         }
 
         .btn-submit:hover {
             background-color: var(--primary-hover);
             transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.3);
+            box-shadow: 0 6px 16px rgba(38, 82, 241, 0.3);
         }
 
         .btn-submit:disabled {
@@ -278,8 +265,8 @@ new #[Layout('layouts.blank')] class extends Component
 
         .form-switch {
             text-align: center;
-            margin-top: 2rem;
-            font-size: 0.95rem;
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
             color: var(--text-muted);
         }
 
@@ -296,43 +283,20 @@ new #[Layout('layouts.blank')] class extends Component
             text-decoration: underline;
         }
 
-        /* Alerts & Errors */
         .error-message {
             color: #ef4444;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             margin-top: 0.3rem;
             display: block;
             font-weight: 500;
         }
 
-        .success-alert, .error-alert {
-            padding: 1rem;
-            border-radius: 10px;
-            margin-bottom: 1.5rem;
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-
-        .success-alert {
-            background-color: #d1fae5;
-            color: #065f46;
-            border: 1px solid #10b981;
-        }
-
-        .error-alert {
-            background-color: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #f87171;
-        }
-
-        /* Two columns for register form */
         .grid-2 {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 1rem;
         }
 
-        /* Animation */
         .fade-in {
             animation: fadeIn 0.4s ease-in-out;
         }
@@ -342,17 +306,58 @@ new #[Layout('layouts.blank')] class extends Component
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Responsive */
+        /* Success Message Styling */
+        .success-card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 3rem 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .success-icon {
+            background: #10b981; 
+            color: white; 
+            width: 70px; 
+            height: 70px; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            margin-bottom: 1.5rem; 
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+            animation: scaleIn 0.5s ease-out;
+        }
+
+        @keyframes scaleIn {
+            0% { transform: scale(0); opacity: 0; }
+            80% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Responsive Mobile View */
         @media (max-width: 900px) {
+            body {
+                padding: 1rem;
+            }
             .auth-wrapper {
                 flex-direction: column;
                 min-height: auto;
+                max-width: 500px;
+                margin: 0 auto;
             }
-            .left-image-container {
-                min-height: 250px !important;
+            .left-pane {
+                width: 100%;
+                min-height: 250px;
             }
             .auth-forms {
-                padding: 2rem;
+                width: 100%;
+                padding: 2rem 1.5rem;
+                max-height: none;
             }
             .grid-2 {
                 grid-template-columns: 1fr;
@@ -363,101 +368,119 @@ new #[Layout('layouts.blank')] class extends Component
 
 <body>
     <div class="auth-wrapper">
-        <div class="left-pane" aria-hidden="true" style="background-image: url('{{ asset('images/sangamner_clg.jpg.jpeg') }}');">
-            <div class="left-pane-content">
-                <div class="branding">
-                    <img src="/images/clg logo.jpg" alt="College Logo">
-                    <div>
-                        <div style="font-size: 1.05rem; font-weight: 700;">Internship Tracking</div>
-                        <div style="font-size: 0.95rem; color: #cbd5e1;">Sangamner College</div>
-                    </div>
-                </div>
-                <div class="headline">
-                    <h1>Internships made simple</h1>
-                    <p>Register, get approved by your department, and track your internship journey from one place.</p>
-                    <span class="badge">Campus verified</span>
-                </div>
-            </div>
+        <div class="left-pane">
+            <img src="{{ asset('images/sangamner_clg.jpeg') }}" alt="Sangamner College Campus">
         </div>
 
         <div class="auth-forms">
-            <div id="login-section" class="fade-in" style="width:100%; max-width:560px; margin:0 auto;">
-                <div class="form-header">
-                    <p class="text-sm" style="color:var(--text-muted); font-weight:600; letter-spacing:0.02em;">Student Portal</p>
-                    <h1>Welcome back</h1>
-                    <p>Sign in with your username or email to continue.</p>
+            
+            @if($isRegistered)
+                <div id="success-section" class="fade-in" style="width:100%;">
+                    <div class="success-card">
+                        <div class="success-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" style="width: 35px; height: 35px;">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                            </svg>
+                        </div>
+
+                        <h1 style="font-size: 1.6rem; font-weight: 800; color: var(--text-dark); margin-bottom: 0.8rem;">Registration Successful!</h1>
+                        
+                        <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5; margin-bottom: 2rem;">
+                            Your request has been sent to your department teacher to approve your registration.
+                        </p>
+                        
+                        <a href="/" class="btn-submit" style="display: inline-block; text-decoration: none; width: auto; padding: 0.85rem 2rem;">Back to Home Page</a>
+                        
+                        <button wire:click="$set('isRegistered', false)" style="background: none; border: none; color: var(--text-muted); font-weight: 500; font-size: 0.9rem; margin-top: 1.5rem; cursor: pointer;">
+                            <span style="text-decoration: underline;">Back to Login</span>
+                        </button>
+                    </div>
+                </div>
+            @else
+                <div id="login-section" class="fade-in" style="width:100%;">
+                    <div class="form-header">
+                        <div class="logo-container">
+                            <img src="{{ asset('images/clg logo.jpg') }}" alt="Sangamner College Logo">
+                        </div>
+                        <div>
+                            <p class="text-sm" style="color:var(--text-muted); font-weight:600; letter-spacing:0.02em; margin-bottom:0.1rem;">Student Portal</p>
+                            <h1>Welcome back</h1>
+                        </div>
+                    </div>
+
+                    <form wire:submit="login" class="form-card">
+                        <div class="input-group">
+                            <label for="login">Username or Email</label>
+                            <input wire:model.defer="loginForm.login" id="login" name="login" type="text" placeholder="Username or email" autocomplete="username">
+                            @error('loginForm.login') <span class="error-message">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div class="input-group">
+                            <label for="password">Password</label>
+                            <input wire:model.defer="loginForm.password" id="password" name="password" type="password" placeholder="••••••••" autocomplete="current-password">
+                            @error('loginForm.password') <span class="error-message">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+                            <input wire:model="loginForm.remember" id="remember" type="checkbox" style="width:15px; height:15px; accent-color:var(--primary); cursor:pointer;">
+                            <label for="remember" style="font-size:0.85rem; color:var(--text-dark); cursor:pointer;">Remember me</label>
+                        </div>
+
+                        <button class="btn-submit" type="submit" wire:loading.attr="disabled">
+                            <span wire:loading.remove>Login</span>
+                            <span wire:loading>Signing in...</span>
+                        </button>
+                    </form>
+
+                    <div class="form-switch">
+                        Don't have an account?
+                        <a id="show-register">Create one</a>
+                    </div>
                 </div>
 
-                <form wire:submit="login" class="fade-in" style="background:#fff; border:1px solid var(--border-color); border-radius:18px; padding:1.5rem 1.75rem; box-shadow:0 14px 48px rgba(24,30,42,0.08);">
-                    <div class="input-group">
-                        <label for="login">Username or Email</label>
-                        <input wire:model.defer="loginForm.login" id="login" name="login" type="text" placeholder="Username or email" autocomplete="username">
-                        @error('loginForm.login') <span class="error-message">{{ $message }}</span> @enderror
-                    </div>
-
-                    <div class="input-group">
-                        <label for="password">Password</label>
-                        <input wire:model.defer="loginForm.password" id="password" name="password" type="password" placeholder="********" autocomplete="current-password">
-                        @error('loginForm.password') <span class="error-message">{{ $message }}</span> @enderror
-                    </div>
-
-                    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
-                        <input wire:model="loginForm.remember" id="remember" type="checkbox" style="width:16px; height:16px; accent-color:var(--primary);">
-                        <label for="remember" style="font-size:0.9rem; color:var(--text-muted); cursor:pointer;">Remember me</label>
-                    </div>
-
-                    <button class="btn-submit" type="submit" wire:loading.attr="disabled">
-                        <span wire:loading.remove>Login</span>
-                        <span wire:loading>Signing in...</span>
-                    </button>
-                </form>
-
-                <div class="form-switch">
-                    Don't have an account?
-                    <a id="show-register">Create one</a>
-                </div>
-            </div>
-
-            <div id="register-section" style="display:none; width:100%; max-width:760px; margin:0 auto;" class="fade-in">
-                <div class="form-header">
-                    <p class="text-sm" style="color:var(--text-muted); font-weight:600; letter-spacing:0.02em;">Student Registration</p>
-                    <h1>Create your account</h1>
-                    <p>Fill the details below. Your department teacher will approve your access.</p>
-                </div>
-
-                <form wire:submit="register" class="fade-in" style="background:#fff; border:1px solid var(--border-color); border-radius:18px; padding:1.5rem 1.75rem; box-shadow:0 14px 48px rgba(24,30,42,0.08);">
-                    <div class="grid-2">
-                        <div class="input-group">
-                            <label for="name">Full name</label>
-                        <input wire:model.defer="name" id="name" name="name" type="text" placeholder="Full name" autocomplete="name">
-                            @error('name') <span class="error-message">{{ $message }}</span> @enderror
+                <div id="register-section" style="display:none; width:100%;" class="fade-in">
+                    <div class="form-header">
+                        <div class="logo-container">
+                            <img src="{{ asset('images/clg logo.jpg') }}" alt="Sangamner College Logo">
                         </div>
-                        <div class="input-group">
-                            <label for="username">Username</label>
-                        <input wire:model.defer="username" id="username" name="username" type="text" placeholder="Username" autocomplete="username">
-                            @error('username') <span class="error-message">{{ $message }}</span> @enderror
+                        <div>
+                            <p class="text-sm" style="color:var(--text-muted); font-weight:600; letter-spacing:0.02em; margin-bottom:0.1rem;">Student Registration</p>
+                            <h1>Create account</h1>
                         </div>
                     </div>
 
-                    <div class="grid-2">
-                        <div class="input-group">
-                            <label for="email">Email</label>
-                        <input wire:model.defer="email" id="email" name="email" type="email" placeholder="Email" autocomplete="email">
-                            @error('email') <span class="error-message">{{ $message }}</span> @enderror
+                    <form wire:submit="register" class="form-card">
+                        <div class="grid-2">
+                            <div class="input-group">
+                                <label for="name">Full name</label>
+                                <input wire:model.defer="name" id="name" name="name" type="text" placeholder="Full name">
+                                @error('name') <span class="error-message">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="input-group">
+                                <label for="username">Username</label>
+                                <input wire:model.defer="username" id="username" name="username" type="text" placeholder="Username">
+                                @error('username') <span class="error-message">{{ $message }}</span> @enderror
+                            </div>
                         </div>
-                        <div class="input-group">
-                            <label for="class">Class</label>
-                            <select wire:model="class" id="class" name="class">
-                                <option value="">Select class</option>
-                                <option value="FYBCS">FYBCS</option>
-                                <option value="SYBCS">SYBCS</option>
-                                <option value="TYBCS">TYBCS</option>
-                            </select>
-                            @error('class') <span class="error-message">{{ $message }}</span> @enderror
-                        </div>
-                    </div>
 
-                    <div class="grid-2">
+                        <div class="grid-2">
+                            <div class="input-group">
+                                <label for="email">Email</label>
+                                <input wire:model.defer="email" id="email" name="email" type="email" placeholder="Email">
+                                @error('email') <span class="error-message">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="input-group">
+                                <label for="class">Class</label>
+                                <select wire:model="class" id="class" name="class">
+                                    <option value="">Select class</option>
+                                    <option value="FYBCS">FYBCS</option>
+                                    <option value="SYBCS">SYBCS</option>
+                                    <option value="TYBCS">TYBCS</option>
+                                </select>
+                                @error('class') <span class="error-message">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+
                         <div class="input-group">
                             <label for="department_id">Department</label>
                             <select wire:model="department_id" id="department_id" name="department_id">
@@ -468,66 +491,76 @@ new #[Layout('layouts.blank')] class extends Component
                             </select>
                             @error('department_id') <span class="error-message">{{ $message }}</span> @enderror
                         </div>
-                        <div></div>
-                    </div>
 
-                    <div class="grid-2">
-                        <div class="input-group">
-                            <label for="password">Password</label>
-                            <input wire:model.defer="password" id="password" name="password" type="password" placeholder="Password" autocomplete="new-password">
-                            @error('password') <span class="error-message">{{ $message }}</span> @enderror
+                        <div class="grid-2">
+                            <div class="input-group">
+                                <label for="password">Password</label>
+                                <input wire:model.defer="password" id="password" name="password" type="password" placeholder="••••••••">
+                                @error('password') <span class="error-message">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="input-group">
+                                <label for="password_confirmation">Confirm</label>
+                                <input wire:model.defer="password_confirmation" id="password_confirmation" name="password_confirmation" type="password" placeholder="••••••••">
+                                @error('password_confirmation') <span class="error-message">{{ $message }}</span> @enderror
+                            </div>
                         </div>
-                        <div class="input-group">
-                            <label for="password_confirmation">Confirm password</label>
-                            <input wire:model.defer="password_confirmation" id="password_confirmation" name="password_confirmation" type="password" placeholder="Confirm password" autocomplete="new-password">
-                            @error('password_confirmation') <span class="error-message">{{ $message }}</span> @enderror
-                        </div>
+
+                        <button class="btn-submit" type="submit" wire:loading.attr="disabled">
+                            <span wire:loading.remove>Submit Registration</span>
+                            <span wire:loading>Submitting...</span>
+                        </button>
+                    </form>
+
+                    <div class="form-switch">
+                        Already registered?
+                        <a id="show-login">Back to login</a>
                     </div>
-
-                    <button class="btn-submit" type="submit" wire:loading.attr="disabled">
-                        <span wire:loading.remove>Submit registration</span>
-                        <span wire:loading>Submitting...</span>
-                    </button>
-                </form>
-
-                <div class="form-switch">
-                    Already registered?
-                    <a id="show-login">Back to login</a>
                 </div>
-            </div>
+            @endif
+        </div>
     </div>
 
     @livewireScripts
         <script>
-            // Auth form switch
-            const loginSection = document.getElementById('login-section');
-            const registerSection = document.getElementById('register-section');
-            const showRegister = document.getElementById('show-register');
-            const showLogin = document.getElementById('show-login');
-            const defaultMode = "{{ request()->routeIs('register') ? 'register' : 'login' }}";
+            // Initialize form switcher logic
+            const initSwitcher = () => {
+                const loginSection = document.getElementById('login-section');
+                const registerSection = document.getElementById('register-section');
+                const showRegister = document.getElementById('show-register');
+                const showLogin = document.getElementById('show-login');
+                const defaultMode = "{{ request()->routeIs('register') ? 'register' : 'login' }}";
 
-            const showLoginSection = () => {
                 if (!loginSection || !registerSection) return;
-                registerSection.style.display = 'none';
-                loginSection.style.display = 'block';
-                loginSection.classList.add('fade-in');
+
+                const showLoginSection = () => {
+                    registerSection.style.display = 'none';
+                    loginSection.style.display = 'block';
+                    loginSection.classList.add('fade-in');
+                };
+
+                const showRegisterSection = () => {
+                    loginSection.style.display = 'none';
+                    registerSection.style.display = 'block';
+                    registerSection.classList.add('fade-in');
+                };
+
+                if (defaultMode === 'register') {
+                    showRegisterSection();
+                } else {
+                    showLoginSection();
+                }
+
+                showRegister?.addEventListener('click', showRegisterSection);
+                showLogin?.addEventListener('click', showLoginSection);
             };
 
-            const showRegisterSection = () => {
-                if (!loginSection || !registerSection) return;
-                loginSection.style.display = 'none';
-                registerSection.style.display = 'block';
-                registerSection.classList.add('fade-in');
-            };
-
-            if (defaultMode === 'register') {
-                showRegisterSection();
-            } else {
-                showLoginSection();
-            }
-
-            showRegister?.addEventListener('click', showRegisterSection);
-            showLogin?.addEventListener('click', showLoginSection);
+            // Run on load and after Livewire updates
+            document.addEventListener('DOMContentLoaded', initSwitcher);
+            document.addEventListener('livewire:navigated', initSwitcher);
+            
+            Livewire.hook('morph.updated', ({ el, component }) => {
+                initSwitcher();
+            });
         </script>
 </body>
 </html>

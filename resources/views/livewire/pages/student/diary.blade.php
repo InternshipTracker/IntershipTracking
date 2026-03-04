@@ -17,6 +17,8 @@ new #[Layout('layouts.app')] class extends Component
     public string $skills_developed = '';
     public bool $showSuccessModal = false;
     public array $expandedEntries = [];
+    public ?int $deleteEntryId = null;
+    public ?int $editEntryId = null;
 
     public function mount(): void
     {
@@ -39,6 +41,11 @@ new #[Layout('layouts.app')] class extends Component
 
     public function submit(): void
     {
+        if ($this->editEntryId) {
+            $this->updateEntry();
+            return;
+        }
+
         $internship = $this->approvedInternship();
         if (! $internship) {
             session()->flash('status', 'Daily diary is allowed only after internship approval.');
@@ -87,6 +94,71 @@ new #[Layout('layouts.app')] class extends Component
         }
     }
 
+    public function deleteEntry(int $entryId): void
+    {
+        $entry = Diary::query()
+            ->where('student_id', auth()->id())
+            ->findOrFail($entryId);
+
+        $entry->delete();
+        $this->expandedEntries = array_filter($this->expandedEntries, fn ($id) => $id !== $entryId);
+        session()->flash('info', 'Diary entry deleted.');
+    }
+
+    public function startEdit(int $entryId): void
+    {
+        $entry = Diary::query()
+            ->where('student_id', auth()->id())
+            ->findOrFail($entryId);
+
+        $this->editEntryId = $entry->id;
+        $this->entry_date = $entry->entry_date->format('Y-m-d');
+        $this->topic = $entry->topic;
+        $this->progress_description = $entry->progress_description;
+        $this->what_learned = $entry->what_learned;
+        $this->time_spent = $entry->time_spent;
+        $this->hours_studied = (string) $entry->hours_studied;
+        $this->challenges_faced = $entry->challenges_faced ?? '';
+        $this->skills_developed = $entry->skills_developed ?? '';
+    }
+
+    public function cancelEdit(): void
+    {
+        $this->reset(['editEntryId', 'entry_date', 'topic', 'progress_description', 'what_learned', 'time_spent', 'hours_studied', 'challenges_faced', 'skills_developed']);
+    }
+
+    public function updateEntry(): void
+    {
+        $entry = Diary::query()
+            ->where('student_id', auth()->id())
+            ->findOrFail($this->editEntryId);
+
+        $validated = $this->validate([
+            'entry_date' => ['required', 'date'],
+            'topic' => ['required', 'string', 'max:255'],
+            'progress_description' => ['required', 'string', 'max:3000'],
+            'what_learned' => ['required', 'string', 'max:3000'],
+            'time_spent' => ['required', 'string', 'max:50'],
+            'hours_studied' => ['required', 'numeric', 'min:0', 'max:24'],
+            'challenges_faced' => ['nullable', 'string', 'max:3000'],
+            'skills_developed' => ['nullable', 'string', 'max:3000'],
+        ]);
+
+        $entry->update([
+            'entry_date' => $validated['entry_date'],
+            'topic' => $validated['topic'],
+            'progress_description' => $validated['progress_description'],
+            'what_learned' => $validated['what_learned'],
+            'time_spent' => $validated['time_spent'],
+            'hours_studied' => $validated['hours_studied'],
+            'challenges_faced' => $validated['challenges_faced'] ?? null,
+            'skills_developed' => $validated['skills_developed'] ?? null,
+        ]);
+
+        $this->reset(['editEntryId', 'entry_date', 'topic', 'progress_description', 'what_learned', 'time_spent', 'hours_studied', 'challenges_faced', 'skills_developed']);
+        session()->flash('status', 'Diary entry updated.');
+    }
+
     public function entries()
     {
         return Diary::query()
@@ -126,8 +198,8 @@ new #[Layout('layouts.app')] class extends Component
                 </svg>
             </div>
             <div>
-                <h2 class="text-xl font-bold text-slate-900">Add New Entry</h2>
-                <p class="text-sm text-slate-600">Fill in your daily learning details</p>
+                <h2 class="text-xl font-bold text-slate-900">{{ $editEntryId ? 'Edit Diary Entry' : 'Add New Entry' }}</h2>
+                <p class="text-sm text-slate-600">{{ $editEntryId ? 'Update your diary entry details' : 'Fill in your daily learning details' }}</p>
             </div>
         </div>
         
@@ -214,8 +286,11 @@ new #[Layout('layouts.app')] class extends Component
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                     </svg>
-                    Save Diary Entry
+                    {{ $editEntryId ? 'Update Entry' : 'Save Diary Entry' }}
                 </button>
+                @if($editEntryId)
+                    <button type="button" wire:click="cancelEdit" class="px-4 py-3 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50">Cancel Edit</button>
+                @endif
                 <p class="text-sm text-slate-500 italic">* Required fields</p>
             </div>
         </form>
@@ -232,40 +307,40 @@ new #[Layout('layouts.app')] class extends Component
 
         <div class="space-y-4">
             @forelse ($this->entries() as $entry)
-                <div class="bg-white rounded-xl border-2 border-slate-200 hover:border-indigo-300 shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden" wire:key="entry-{{ $entry->id }}">
-                    <!-- Entry Header - Clickable -->
-                    <button 
-                        wire:click="toggleEntry({{ $entry->id }})" 
-                        class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 p-5 relative overflow-hidden hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 text-left"
-                    >
-                        <div class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16"></div>
-                        <div class="relative flex items-center justify-between">
-                            <div class="flex items-center gap-4 flex-1">
-                                <div class="w-14 h-14 bg-white bg-opacity-20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                    </svg>
+                <div class="bg-white rounded-xl border border-slate-200 hover:border-indigo-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden" wire:key="entry-{{ $entry->id }}">
+                    <!-- Entry Header -->
+                    <div class="bg-gradient-to-r from-indigo-500 to-blue-500 p-4 flex items-center gap-4">
+                        <div class="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center text-white">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="min-w-0">
+                                    <h3 class="text-lg font-bold text-white truncate">{{ $entry->topic }}</h3>
+                                    <p class="text-white/90 text-xs mt-1">{{ $entry->entry_date->format('l, F d, Y') }}</p>
                                 </div>
-                                <div>
-                                    <h3 class="text-2xl font-bold text-white">{{ $entry->topic }}</h3>
-                                    <p class="text-white text-opacity-90 mt-1">{{ $entry->entry_date->format('l, F d, Y') }}</p>
+                                <div class="flex items-center gap-2">
+                                    <button wire:click="startEdit({{ $entry->id }})" class="px-2.5 py-1 bg-white/20 text-white rounded-md text-xs font-semibold hover:bg-white/30 border border-white/30">Edit</button>
+                                    <button onclick="confirm('Delete this entry?') || event.stopImmediatePropagation()" wire:click="deleteEntry({{ $entry->id }})" class="px-2.5 py-1 bg-white/20 text-white rounded-md text-xs font-semibold hover:bg-white/30 border border-white/30">Delete</button>
+                                    <button wire:click="toggleEntry({{ $entry->id }})" class="p-2 bg-white/15 rounded-md border border-white/25 text-white hover:bg-white/25 transition">
+                                        <svg class="w-5 h-5 transition-transform duration-200 {{ in_array($entry->id, $expandedEntries) ? 'rotate-90' : 'rotate-0' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"></path>
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
-                            <!-- Toggle Arrow -->
-                            <div class="flex flex-col items-end gap-2 flex-shrink-0 ml-4">
-                                <svg class="w-8 h-8 text-white transition-transform duration-300 {{ in_array($entry->id, $expandedEntries) ? 'rotate-90' : 'rotate-0' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"></path>
-                                </svg>
-                                <span class="px-4 py-1.5 bg-white bg-opacity-20 backdrop-blur-sm rounded-full text-white font-semibold text-sm">
-                                    ⏳ {{ $entry->hours_studied }} hrs
-                                </span>
+                            <div class="mt-2 text-xs text-white/90 flex items-center gap-3">
+                                <span class="inline-flex items-center px-2 py-1 bg-white/15 rounded-full">⏳ {{ $entry->hours_studied }} hrs</span>
+                                <span class="inline-flex items-center px-2 py-1 bg-white/15 rounded-full">🕒 {{ $entry->time_spent }}</span>
                             </div>
                         </div>
-                    </button>
+                    </div>
 
                     <!-- Entry Body - Expandable -->
                     @if (in_array($entry->id, $expandedEntries))
-                        <div class="p-6 space-y-5" style="animation: slideDown 0.3s ease-out; overflow: hidden;">
+                        <div class="p-5 space-y-5 bg-white" style="animation: slideDown 0.2s ease-out; overflow: hidden;">
                             <!-- Work Done -->
                             <div>
                                 <div class="flex items-center gap-2 mb-2">

@@ -2,12 +2,15 @@
 
 use App\Models\Internship;
 use App\Models\User;
+use App\Models\Batch;
 use Illuminate\Support\Carbon;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
 new #[Layout('layouts.app')] class extends Component
 {
+    public ?int $endingBatchId = null;
+
     public array $expandedBatchIds = [];
 
     public function assignedClasses(): array
@@ -42,6 +45,29 @@ new #[Layout('layouts.app')] class extends Component
             ->where('status', 'approved')
             ->whereDate('end_date', '>=', now()->toDateString())
             ->count();
+    }
+
+    public function endingBatches()
+    {
+        return Batch::query()
+            ->with(['internships.student'])
+            ->where('teacher_id', auth()->id())
+            ->where('status', 'Active')
+            ->whereHas('internships', function ($q) {
+                $q->whereDate('end_date', '<', now()->toDateString());
+            })
+            ->orderBy('batch_number')
+            ->get();
+    }
+
+    public function markBatchEnded(int $batchId): void
+    {
+        $batch = Batch::query()
+            ->where('teacher_id', auth()->id())
+            ->findOrFail($batchId);
+
+        $batch->update(['status' => 'Ended']);
+        session()->flash('status', "Batch #{$batch->batch_number} marked as ended.");
     }
 
     public function upcomingTasks()
@@ -129,95 +155,66 @@ new #[Layout('layouts.app')] class extends Component
         <div class="bg-green-50 text-green-700 border border-green-200 rounded-lg p-3 text-sm">{{ session('status') }}</div>
     @endif
 
+    <div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl border border-indigo-200 p-5 shadow-sm">
+        <div class="flex items-center gap-3 mb-3">
+            <div class="bg-indigo-600 rounded-full p-3">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                </svg>
+            </div>
+            <div>
+                <p class="text-sm text-slate-600 mb-1">Teacher Snapshot</p>
+                <p class="text-lg font-semibold text-indigo-900">{{ auth()->user()->name }}</p>
+                <p class="text-sm text-slate-600">Classes: {{ implode(', ', $this->assignedClasses()) ?: 'Not assigned' }}</p>
+            </div>
+        </div>
+        <p class="text-sm text-slate-700">Keep track of your department, pending approvals, and active internships from one place.</p>
+    </div>
+
     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-            <div class="flex items-center justify-between">
-                <p class="text-sm text-slate-500">Pending Internships</p>
-                @if ($this->pendingInternships() > 0)
-                    <span class="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-red-500 text-white text-xs font-semibold">{{ $this->pendingInternships() }}</span>
-                @endif
-            </div>
-            <p class="text-3xl font-bold mt-2">{{ $this->pendingInternships() }}</p>
-            <p class="text-xs text-slate-500 mt-1">Awaiting your approval</p>
-        </div>
-
-        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-            <p class="text-sm text-slate-500">Approved Internships</p>
-            <p class="text-3xl font-bold mt-2">{{ $this->approvedInternships() }}</p>
-            <p class="text-xs text-slate-500 mt-1">Total approved by you</p>
-        </div>
-
-        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-            <p class="text-sm text-slate-500">Active Internships</p>
-            <p class="text-3xl font-bold mt-2">{{ $this->activeInternships() }}</p>
-            <p class="text-xs text-slate-500 mt-1">Currently running</p>
-        </div>
-
-        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-            <div class="flex items-center justify-between">
-                <p class="text-sm text-slate-500">Pending Student Requests</p>
-                @if ($this->pendingStudentRequests() > 0)
-                    <span class="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-amber-500 text-white text-xs font-semibold">{{ $this->pendingStudentRequests() }}</span>
-                @endif
-            </div>
-            <p class="text-3xl font-bold mt-2">{{ $this->pendingStudentRequests() }}</p>
-            <p class="text-xs text-slate-500 mt-1">Students awaiting approval</p>
-        </div>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl border border-indigo-200 p-5 shadow-sm">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="bg-indigo-600 rounded-full p-3">
-                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                    </svg>
-                </div>
+        <div class="rounded-2xl p-5 shadow-md text-slate-900" style="background: linear-gradient(135deg,#b7f5d5,#e8fff0);">
+            <div class="flex items-start justify-between">
                 <div>
-                    <p class="text-sm text-slate-600 mb-1">Teacher Snapshot</p>
-                    <p class="text-lg font-semibold text-indigo-900">{{ auth()->user()->name }}</p>
-                    <p class="text-sm text-slate-600">Classes: {{ implode(', ', $this->assignedClasses()) ?: 'Not assigned' }}</p>
+                    <p class="text-sm font-semibold text-slate-600">Pending Internships</p>
+                    <p class="text-3xl font-bold mt-2">{{ $this->pendingInternships() }}</p>
+                    <p class="text-xs text-emerald-700 mt-2">Awaiting your approval</p>
                 </div>
+                <div class="w-11 h-11 rounded-full bg-emerald-500 text-white flex items-center justify-center text-lg">📂</div>
             </div>
-            <p class="text-sm text-slate-700">Keep track of your department, pending approvals, and active internships from one place.</p>
         </div>
 
-        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-            <h2 class="text-lg font-semibold mb-4">Upcoming Tasks</h2>
-            <div class="space-y-4 text-sm">
-                @forelse ($this->upcomingTasks() as $task)
-                    <label class="flex items-start gap-3 border-b border-slate-100 pb-3 last:border-b-0 last:pb-0">
-                        <input type="checkbox" class="mt-1 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
-                        <span>
-                            <span class="font-medium text-slate-900 block">{{ $task['title'] }}</span>
-                            <span class="text-slate-600 block mt-1">{{ $task['meta'] }}</span>
-                            <span class="text-xs text-slate-500 block mt-1">{{ $task['time'] }}</span>
-                        </span>
-                    </label>
-                @empty
-                    <p class="text-slate-500">No upcoming tasks.</p>
-                @endforelse
+        <div class="rounded-2xl p-5 shadow-md text-slate-900" style="background: linear-gradient(135deg,#ffe0f1,#fff5fb);">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-sm font-semibold text-slate-600">Approved Internships</p>
+                    <p class="text-3xl font-bold mt-2">{{ $this->approvedInternships() }}</p>
+                    <p class="text-xs text-rose-700 mt-2">Total approved by you</p>
+                </div>
+                <div class="w-11 h-11 rounded-full bg-rose-500 text-white flex items-center justify-center text-lg">✅</div>
+            </div>
+        </div>
+
+        <div class="rounded-2xl p-5 shadow-md text-slate-900" style="background: linear-gradient(135deg,#dce9ff,#f4f7ff);">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-sm font-semibold text-slate-600">Active Internships</p>
+                    <p class="text-3xl font-bold mt-2">{{ $this->activeInternships() }}</p>
+                    <p class="text-xs text-indigo-700 mt-2">Currently running</p>
+                </div>
+                <div class="w-11 h-11 rounded-full bg-indigo-500 text-white flex items-center justify-center text-lg">🚀</div>
+            </div>
+        </div>
+
+        <div class="rounded-2xl p-5 shadow-md text-slate-900" style="background: linear-gradient(135deg,#fff0d6,#fff9ed);">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-sm font-semibold text-slate-600">Pending Student Requests</p>
+                    <p class="text-3xl font-bold mt-2">{{ $this->pendingStudentRequests() }}</p>
+                    <p class="text-xs text-amber-700 mt-2">Students awaiting approval</p>
+                </div>
+                <div class="w-11 h-11 rounded-full bg-amber-500 text-white flex items-center justify-center text-lg">👥</div>
             </div>
         </div>
     </div>
 
-    <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-        <div class="flex items-center justify-between mb-3">
-            <h2 class="text-lg font-semibold">Recently Approved Students</h2>
-            <a href="{{ route('teacher.approved-students') }}" wire:navigate class="text-sm text-indigo-600 hover:text-indigo-700">View all</a>
-        </div>
-        <div class="divide-y divide-slate-100 text-sm">
-            @forelse ($this->approvedStudents() as $student)
-                <div class="py-3 flex items-center justify-between">
-                    <div>
-                        <p class="font-semibold text-slate-900">{{ $student->name }}</p>
-                        <p class="text-slate-600">{{ $student->department?->name ?? 'No Department' }} • Class {{ $student->class ?? '-' }}</p>
-                    </div>
-                    <span class="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">Approved</span>
-                </div>
-            @empty
-                <p class="text-slate-500">No students approved yet.</p>
-            @endforelse
-        </div>
-    </div>
 </div>

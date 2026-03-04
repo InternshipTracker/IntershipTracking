@@ -75,7 +75,7 @@ new #[Layout('layouts.app')] class extends Component
 @php($student = $this->student())
 @php($internship = $this->internship())
 @php($profileCompletion = $this->profileCompletion())
-@php($daysLeft = $this->internshipDaysLeft($internship))
+@php($daysLeft = $internship && $internship->status === 'approved' ? $this->internshipDaysLeft($internship) : null)
 
         <div class="space-y-6">
             <div class="bg-white rounded-xl border border-slate-200 p-5 md:p-6">
@@ -108,6 +108,7 @@ new #[Layout('layouts.app')] class extends Component
                 <div class="bg-red-50 text-red-700 border border-red-200 rounded-lg p-3 text-sm">{{ session('error') }}</div>
             @endif
 
+            {{-- Status strip --}}
             @if (!$internship)
                 <div class="bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-lg p-4">
                     <p class="font-medium">📝 Ready to Start Your Internship Journey?</p>
@@ -117,12 +118,12 @@ new #[Layout('layouts.app')] class extends Component
             @elseif ($internship->status === 'pending')
                 <div class="bg-blue-50 text-blue-800 border border-blue-200 rounded-lg p-4">
                     <p class="font-medium">⏳ Your Internship Application is Under Review</p>
-                    <p class="text-sm mt-1">Your teacher will review and approve your application soon. Daily Diary will be available after approval.</p>
+                    <p class="text-sm mt-1">Your teacher will review and approve your application soon. Batch number and timeline will show after approval.</p>
                 </div>
             @elseif ($internship->status === 'approved')
                 <div class="bg-green-50 text-green-800 border border-green-200 rounded-lg p-4">
                     <p class="font-medium">✅ Your Internship is Approved!</p>
-                    <p class="text-sm mt-1">You can now maintain your Daily Diary and track your progress.</p>
+                    <p class="text-sm mt-1">Your batch number and timeline are now available. You can start your Daily Diary.</p>
                     <a href="{{ route('student.diary') }}" class="inline-block mt-3 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700" wire:navigate>Go to Daily Diary</a>
                 </div>
             @elseif ($internship->status === 'rejected')
@@ -132,40 +133,56 @@ new #[Layout('layouts.app')] class extends Component
                 </div>
             @endif
 
-            @if (!$internship || $internship->status === 'approved' || $internship->status === 'pending')
-            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-                <div class="bg-white rounded-xl border border-slate-200 p-5">
-                    <p class="text-sm text-slate-500">Internship Status</p>
-                    <p class="text-xl font-semibold mt-2 capitalize">{{ $internship?->status ?? 'Not Applied' }}</p>
+            {{-- Compact internship overview removed as requested --}}
+
+            {{-- Metric cards (pastel like sample) --}}
+            @php($diaryCount = $this->diaryCount())
+            @php($announcementCount = $this->announcementCount())
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm">
+                    <div class="flex items-start justify-between">
+                        <p class="text-slate-600 text-sm font-semibold">Internship Status</p>
+                        <span class="text-emerald-600 text-lg">📁</span>
+                    </div>
+                    <p class="text-3xl font-bold text-slate-900 mt-2">{{ ucfirst($internship->status ?? 'Not applied') }}</p>
+                    <p class="text-sm text-emerald-600 mt-2">{{ $internship?->batch?->company_name ?? 'Awaiting approval' }}</p>
                 </div>
-                <div class="bg-white rounded-xl border border-slate-200 p-5">
-                    <p class="text-sm text-slate-500">Batch Number</p>
-                    <p class="text-xl font-semibold mt-2">{{ $internship?->batch?->batch_number ?? '-' }}</p>
-                    @if ($internship?->batch)
-                        <p class="text-xs text-slate-500 mt-1">Teacher: {{ $internship->batch->teacher?->name ?? '-' }}<br>Company: {{ $internship->batch->company_name }} ({{ $internship->batch->class }})</p>
-                        <p class="text-xs text-slate-500 mt-1">Status: {{ $internship->batch->status ?? 'Active' }}</p>
-                    @endif
+
+                <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm">
+                    <div class="flex items-start justify-between">
+                        <p class="text-slate-600 text-sm font-semibold">Batch</p>
+                        <span class="text-blue-600 text-lg">🏷️</span>
+                    </div>
+                    <p class="text-3xl font-bold text-slate-900 mt-2">{{ $internship?->batch?->batch_number ? '#'.$internship->batch->batch_number : '-' }}</p>
+                    <p class="text-sm text-blue-600 mt-2">{{ $internship?->batch?->class ?? 'No class' }}</p>
                 </div>
-                <div class="bg-white rounded-xl border border-slate-200 p-5">
-                    <p class="text-sm text-slate-500">Diary Entries</p>
-                    <p class="text-xl font-semibold mt-2">{{ $this->diaryCount() }}</p>
+
+                <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-purple-50 to-white p-4 shadow-sm">
+                    <div class="flex items-start justify-between">
+                        <p class="text-slate-600 text-sm font-semibold">Diary Entries</p>
+                        <span class="text-purple-600 text-lg">📝</span>
+                    </div>
+                    <p class="text-3xl font-bold text-slate-900 mt-2">{{ $diaryCount }}</p>
+                    <p class="text-sm text-purple-600 mt-2">{{ $diaryCount }} logged</p>
                 </div>
-                <div class="bg-white rounded-xl border border-slate-200 p-5">
-                    <p class="text-sm text-slate-500">Announcements</p>
-                    <p class="text-xl font-semibold mt-2">{{ $this->announcementCount() }}</p>
-                </div>
-                <div class="bg-white rounded-xl border border-slate-200 p-5">
-                    <p class="text-sm text-slate-500">Internship Timeline</p>
-                    @if ($daysLeft === null)
-                        <p class="text-slate-500 mt-2">Not available</p>
-                    @elseif ($daysLeft >= 0)
-                        <p class="text-xl font-semibold mt-2">{{ $daysLeft }} days left</p>
-                    @else
-                        <p class="text-xl font-semibold mt-2">Completed</p>
-                    @endif
+
+                <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-amber-50 to-white p-4 shadow-sm">
+                    <div class="flex items-start justify-between">
+                        <p class="text-slate-600 text-sm font-semibold">Timeline</p>
+                        <span class="text-amber-600 text-lg">⏳</span>
+                    </div>
+                    <p class="text-3xl font-bold text-slate-900 mt-2">
+                        @if ($daysLeft === null)
+                            —
+                        @elseif ($daysLeft >= 0)
+                            {{ $daysLeft }}d left
+                        @else
+                            Completed
+                        @endif
+                    </p>
+                    <p class="text-sm text-amber-600 mt-2">{{ $announcementCount }} announcements</p>
                 </div>
             </div>
-            @endif
 
             <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
                 <div class="xl:col-span-2 bg-white rounded-xl border border-slate-200 p-5">
@@ -205,10 +222,6 @@ new #[Layout('layouts.app')] class extends Component
                             <a href="{{ route('student.internship.apply') }}" class="block w-full px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50" wire:navigate>Apply for Internship</a>
                         @endif
                         @if ($internship?->status === 'approved')
-                            <div class="bg-red-50 text-red-800 border border-red-200 rounded-lg p-4">
-                                <p class="font-medium">❌ Your Internship Application was Rejected</p>
-                                <p class="text-sm mt-1">Please contact your teacher for more details.</p>
-                            </div>
                             <a href="{{ Storage::url($internship->approval_pdf_path) }}" target="_blank" class="block w-full px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50">Download Approval PDF</a>
                         @endif
                     </div>
@@ -220,5 +233,4 @@ new #[Layout('layouts.app')] class extends Component
                     <!-- Internship Details section removed as requested -->
                 </div>
             @endif
-
-</div>
+        </div>

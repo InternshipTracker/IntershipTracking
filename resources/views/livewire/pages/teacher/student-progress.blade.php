@@ -111,60 +111,70 @@ new #[Layout('layouts.app')] class extends Component
     }
 }; ?>
 
-<div class="space-y-6">
+<div class="max-w-6xl mx-auto px-3 md:px-0 space-y-8">
     <!-- Header with Back Button -->
-    <div class="flex items-center justify-between">
-        <div>
-            <a href="{{ route('teacher.dashboard') }}" class="text-indigo-600 hover:text-indigo-700 font-semibold text-sm mb-2 inline-flex items-center gap-1">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                </svg>
-                Back to Dashboard
-            </a>
-            <h1 class="text-3xl font-bold text-slate-900">👨‍🎓 {{ $student->name }}'s Progress</h1>
-            <p class="text-slate-600 mt-1">{{ $student->email }}</p>
-        </div>
-        @php($stats = $this->progressStats())
-        @if ($stats)
-            <div class="text-right bg-gradient-to-br from-indigo-50 to-blue-50 rounded-lg border border-indigo-200 p-4">
-                <div class="text-4xl font-bold text-indigo-600">{{ $stats['progress_percentage'] }}%</div>
-                <p class="text-slate-600 text-sm mt-1">Overall Progress</p>
-                <div class="mt-3 space-y-1 text-sm">
-                    <p class="text-slate-700"><strong>{{ $stats['entry_count'] }}</strong> Entries</p>
-                    <p class="text-slate-700"><strong>{{ round($stats['total_hours'], 1) }}</strong> Hours Studied</p>
-                </div>
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 md:p-6">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+                <a href="{{ route('teacher.dashboard') }}" class="text-indigo-600 hover:text-indigo-700 font-semibold text-sm mb-3 inline-flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                    Back to Dashboard
+                </a>
+                <h1 class="text-3xl md:text-4xl font-bold text-slate-900 leading-tight">👨‍🎓 {{ $student->name }}'s Progress</h1>
+                <p class="text-slate-600 mt-2 text-sm md:text-base">{{ $student->email }}</p>
             </div>
-        @endif
+            @php($stats = $this->progressStats())
+            @if ($stats)
+                <div class="text-right bg-gradient-to-br from-indigo-50 to-blue-50 rounded-xl border border-indigo-100 p-4 min-w-[220px]">
+                    <div class="text-4xl font-extrabold text-indigo-600">{{ $stats['progress_percentage'] }}%</div>
+                    <p class="text-slate-600 text-sm mt-1">Overall Progress</p>
+                    <div class="mt-3 space-y-1 text-sm">
+                        <p class="text-slate-700"><strong>{{ $stats['entry_count'] }}</strong> Entries</p>
+                        <p class="text-slate-700"><strong>{{ round($stats['total_hours'], 1) }}</strong> Hours Studied</p>
+                    </div>
+                </div>
+            @endif
+        </div>
     </div>
 
-    <!-- Internship Info -->
-    @if ($this->internships()->count() > 0)
-        @foreach ($this->internships() as $internship)
-            <div class="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl shadow-lg p-6 text-white">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <!-- Internship hero -->
+    @php($latestInternship = $this->internships()->first())
+    @if ($latestInternship)
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="bg-gradient-to-r from-indigo-600 via-blue-600 to-cyan-500 text-white p-6 md:p-7">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
                     <div>
-                        <p class="text-blue-100 text-sm font-semibold">Company</p>
-                        <p class="text-2xl font-bold">{{ $internship->company_name }}</p>
+                        <p class="text-blue-100 text-sm uppercase tracking-wide font-semibold">Current Internship</p>
+                        <h2 class="text-3xl md:text-4xl font-bold leading-tight">{{ $latestInternship->company_name }}</h2>
+                        <p class="text-blue-100 text-sm mt-1">Class {{ $latestInternship->student->class ?? $latestInternship->batch->class ?? '-' }}</p>
                     </div>
-                    <div>
-                        <p class="text-blue-100 text-sm font-semibold">Batch</p>
-                        <p class="text-2xl font-bold">{{ $internship->batch ? '#'.$internship->batch->id.' '.$internship->batch->class : 'N/A' }}</p>
-                    </div>
-                    <div>
-                        <p class="text-blue-100 text-sm font-semibold">Start Date</p>
-                        <p class="text-2xl font-bold">{{ $internship->start_date ? $internship->start_date->format('M d') : 'N/A' }}</p>
-                    </div>
-                    <div>
-                        <p class="text-blue-100 text-sm font-semibold">End Date</p>
-                        <p class="text-2xl font-bold">{{ $internship->end_date ? $internship->end_date->format('M d') : 'N/A' }}</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm md:text-base">
+                        <div class="bg-white/15 rounded-lg px-4 py-3 text-center">
+                            <p class="text-blue-100 font-semibold">Batch</p>
+                            <p class="text-2xl font-bold">#{{ $latestInternship->batch?->batch_number ?? '-' }}</p>
+                        </div>
+                        <div class="bg-white/15 rounded-lg px-4 py-3 text-center">
+                            <p class="text-blue-100 font-semibold">Start</p>
+                            <p class="text-2xl font-bold">{{ $latestInternship->start_date?->format('M d') ?? 'N/A' }}</p>
+                        </div>
+                        <div class="bg-white/15 rounded-lg px-4 py-3 text-center">
+                            <p class="text-blue-100 font-semibold">End</p>
+                            <p class="text-2xl font-bold">{{ $latestInternship->end_date?->format('M d') ?? 'N/A' }}</p>
+                        </div>
+                        <div class="bg-white/15 rounded-lg px-4 py-3 text-center">
+                            <p class="text-blue-100 font-semibold">Status</p>
+                            <p class="text-2xl font-bold">{{ ucfirst($latestInternship->status ?? 'pending') }}</p>
+                        </div>
                     </div>
                 </div>
             </div>
-        @endforeach
+        </div>
     @endif
 
     <!-- Diary Entries by Date -->
-    <div class="bg-gradient-to-br from-white to-slate-50 rounded-xl border-2 border-slate-200 p-6 space-y-4">
+    <div class="bg-gradient-to-br from-white to-slate-50 rounded-xl border-2 border-slate-200 shadow-sm p-6 space-y-4">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-2xl font-bold text-slate-900">📖 Learning Timeline</h2>
             @php($totalEntries = 0)

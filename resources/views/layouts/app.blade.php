@@ -9,6 +9,68 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
+
+    <style>
+        /* Sidebar + shell layout tweaks (collapsible) */
+        .sidebar {
+            width: 16rem; /* slightly slimmer */
+            background: #0f172a; /* slate-900 to match original */
+            transition: width 0.25s ease;
+        }
+
+        .app-shell {
+            padding-left: 0;
+            transition: padding-left 0.25s ease;
+        }
+
+        @media (min-width: 768px) {
+            .app-shell {
+                padding-left: 16rem;
+            }
+            body.sidebar-collapsed .sidebar {
+                width: 4.5rem;
+            }
+            body.sidebar-collapsed .app-shell {
+                padding-left: 4.5rem;
+            }
+        }
+
+        body.sidebar-collapsed .sidebar .item-label,
+        body.sidebar-collapsed .sidebar .section-title,
+        body.sidebar-collapsed .sidebar .brand-text {
+            display: none;
+        }
+
+        .sidebar nav a {
+            position: relative;
+        }
+
+        body.sidebar-collapsed .sidebar nav a {
+            justify-content: center;
+        }
+
+        body.sidebar-collapsed .sidebar nav a .nav-icon {
+            margin-right: 0;
+        }
+
+        .sidebar .item-badge {
+            position: absolute;
+            right: 12px;
+        }
+
+        /* keep header toggle button aligned */
+        #sidebarToggle {
+            background: #1b3760;
+            color: #e5e7eb;
+            border: 1px solid #243c5f;
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+
+        #sidebarToggle:hover {
+            background: #234673;
+            transform: translateY(-1px);
+        }
+    </style>
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
     @php
@@ -52,6 +114,14 @@
                 ->count()
             : 0;
 
+        $endingBatchCount = $role === 'teacher'
+            ? \App\Models\Batch::query()
+                ->where('teacher_id', $user?->id)
+                ->where('status', 'Active')
+                ->whereHas('internships', function($q){ $q->whereDate('end_date', '<', now()->toDateString()); })
+                ->count()
+            : 0;
+
         $menu = match ($role) {
             'superadmin' => [
                 ['label' => 'Dashboard', 'route' => 'superadmin.dashboard', 'icon' => '📊'],
@@ -66,6 +136,7 @@
                 ['label' => 'Pending Student Requests', 'route' => 'teacher.pending-students', 'icon' => '🧾', 'badge' => $teacherPendingStudentCount],
                 ['label' => 'Announcements', 'route' => 'teacher.announcements', 'icon' => '📢'],
                 ['label' => 'Approved Students', 'route' => 'teacher.approved-students', 'icon' => '✅'],
+                ['label' => 'Ending Batches', 'route' => 'teacher.ending-batches', 'icon' => '⏳', 'badge' => $endingBatchCount],
             ],
             default => [
                 ['label' => 'Dashboard', 'route' => 'student.dashboard', 'icon' => '📊'],
@@ -97,73 +168,85 @@
                 ->count(),
             default => 0,
         };
+
+        $normalizedProfilePhotoPath = $user?->profile_photo_path
+            ? ltrim(preg_replace('#^(storage/|public/)#', '', $user->profile_photo_path), '/')
+            : null;
+
+        $profilePhotoExists = $normalizedProfilePhotoPath
+            ? Storage::disk('public')->exists($normalizedProfilePhotoPath)
+            : false;
+
+        $profilePhotoUrl = $profilePhotoExists
+            ? Storage::disk('public')->url($normalizedProfilePhotoPath)
+            : ($user?->role === 'teacher'
+                ? asset('/images/default-teacher.png')
+                : asset('/images/default-user.png'));
+
+        // Build two-letter initials (first + last) for users without a profile photo
+        $initials = '';
+        if ($user?->name) {
+            $nameParts = preg_split('/\s+/', trim($user->name));
+            if (!empty($nameParts)) {
+                $initials .= strtoupper(mb_substr($nameParts[0], 0, 1));
+                if (count($nameParts) > 1) {
+                    $initials .= strtoupper(mb_substr(end($nameParts), 0, 1));
+                }
+            }
+        }
+        if ($initials === '' && $user?->username) {
+            $initials = strtoupper(substr($user->username, 0, 2));
+        }
     @endphp
 
     @if ($user)
     <div class="min-h-screen">
-        <aside class="hidden md:block fixed inset-y-0 left-0 z-40 w-72 bg-slate-900 text-slate-100">
+        <aside class="sidebar hidden md:block fixed inset-y-0 left-0 z-40 text-slate-100">
 
-            <div class="h-16 px-5 flex items-center border-b border-slate-800">
+            <div class="h-16 px-5 flex items-center border-b border-slate-800 gap-3">
                 <img src="/images/clg%20logo.jpg" alt="College Logo" class="w-10 h-10 rounded-lg object-cover shadow bg-white" />
-                <div class="ml-3">
-                    <p class="text-sm font-semibold">Internship Tracking</p>
-                    <p class="text-xs text-slate-400">System</p>
-                </div>
-            </div>
-
-            @php
-                $normalizedProfilePhotoPath = $user?->profile_photo_path
-                    ? ltrim(preg_replace('#^(storage/|public/)#', '', $user->profile_photo_path), '/')
-                    : null;
-
-                $profilePhotoExists = $normalizedProfilePhotoPath
-                    ? Storage::disk('public')->exists($normalizedProfilePhotoPath)
-                    : false;
-
-                $profilePhotoUrl = $profilePhotoExists
-                    ? Storage::disk('public')->url($normalizedProfilePhotoPath)
-                    : ($user?->role === 'teacher'
-                        ? asset('/images/default-teacher.png')
-                        : asset('/images/default-user.png'));
-            @endphp
-
-            <div class="px-4 py-4 border-b border-slate-800 flex items-center gap-3">
-                @if ($profilePhotoExists)
-                    <img src="{{ $profilePhotoUrl }}" alt="Profile" class="h-14 w-14 rounded-full object-cover border border-slate-700" />
-                @else
-                    <div class="h-14 w-14 rounded-full flex items-center justify-center bg-indigo-600 text-white text-2xl font-bold border border-slate-700">
-                        {{ strtoupper(substr($user?->name, 0, 1)) }}
-                    </div>
-                @endif
-                <div class="min-w-0">
-                    <p class="text-sm font-semibold text-slate-100 truncate">{{ $user?->name }}</p>
-                    <p class="text-sm text-slate-300 truncate">{{ $user?->email }}</p>
+                <div class="leading-tight brand-text">
+                    <p class="text-sm font-semibold text-white">Internship Tracking</p>
+                    <p class="text-[11px] text-slate-300">System</p>
                 </div>
             </div>
 
             <div class="px-4 py-3 border-b border-slate-800">
-                <p class="text-sm font-semibold text-slate-200">{{ $dashboardTitle }}</p>
+                <p class="text-sm font-semibold text-slate-200 section-title">{{ $dashboardTitle }}</p>
             </div>
 
             <nav class="p-4 space-y-1">
                 @foreach ($menu as $item)
                     @php
                         $active = request()->routeIs($item['route']);
+                        $href = route($item['route'], $item['params'] ?? []);
+                        if (isset($item['anchor'])) {
+                            $href .= $item['anchor'];
+                        }
+                        $badgeVal = $item['badge'] ?? null;
+                        $badgeIsPositive = is_numeric($badgeVal) && $badgeVal > 0;
                     @endphp
-                    <a href="{{ route($item['route']) }}" wire:navigate class="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition {{ $active ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
-                        <span class="mr-2">{{ $item['icon'] }}</span>
-                        <span>{{ $item['label'] }}</span>
-                        @if (($item['badge'] ?? 0) > 0)
-                            <span class="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold">{{ $item['badge'] }}</span>
-                        @endif
+                    <a href="{{ $href }}" wire:navigate class="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition {{ $active ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                        <span class="mr-2 nav-icon">{{ $item['icon'] }}</span>
+                        <span class="item-label">{{ $item['label'] }}</span>
+                        @isset($item['badge'])
+                            <span class="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full text-[10px] font-semibold item-badge {{ $badgeIsPositive ? 'bg-red-500 text-white' : 'bg-slate-600 text-slate-100' }}">
+                                {{ $badgeVal }}
+                            </span>
+                        @endisset
                     </a>
                 @endforeach
             </nav>
         </aside>
 
-        <div class="md:pl-72 min-h-screen">
+        <div class="app-shell md:pl-72 min-h-screen">
             <header class="h-16 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between">
                 <div class="flex items-center gap-3">
+                    <button id="sidebarToggle" type="button" class="inline-flex items-center justify-center h-10 w-10 rounded-lg" aria-label="Toggle sidebar" aria-expanded="true">
+                        <svg id="sidebarToggleIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
                     <div>
                         <p class="text-sm text-slate-500">{{ $user?->name }}</p>
                         <p class="text-base font-semibold">{{ $dashboardTitle }}</p>
@@ -186,7 +269,7 @@
                             <img src="{{ $profilePhotoUrl }}" alt="Profile" class="h-10 w-10 rounded-full object-cover border border-slate-300 cursor-pointer hover:border-slate-400" />
                         @else
                             <div class="h-10 w-10 rounded-full flex items-center justify-center bg-indigo-600 text-white text-xl font-bold border border-slate-300 cursor-pointer hover:border-slate-400">
-                                {{ strtoupper(substr($user?->name, 0, 1)) }}
+                                {{ $initials }}
                             </div>
                         @endif
                     </button>
@@ -235,7 +318,13 @@
                 </div>
 
                 <div class="text-center mb-4">
-                    <img src="{{ $profilePhotoUrl }}" alt="Profile" class="w-16 h-16 rounded-full mx-auto object-cover border border-slate-200 mb-3">
+                    @if ($profilePhotoExists)
+                        <img src="{{ $profilePhotoUrl }}" alt="Profile" class="w-16 h-16 rounded-full mx-auto object-cover border border-slate-200 mb-3">
+                    @else
+                        <div class="w-16 h-16 rounded-full mx-auto flex items-center justify-center bg-indigo-600 text-white text-2xl font-bold border border-slate-200 mb-3">
+                            {{ $initials }}
+                        </div>
+                    @endif
                 </div>
 
                 <div class="space-y-3 text-sm border-t border-slate-200 pt-4">
@@ -299,5 +388,37 @@
         </main>
     @endif
     @livewireScripts
+
+    <script>
+        (() => {
+            const body = document.body;
+            const toggle = document.getElementById('sidebarToggle');
+            const icon = document.getElementById('sidebarToggleIcon');
+
+            if (!toggle || !icon) return;
+
+            const setIcon = (collapsed) => {
+                // collapsed -> arrow pointing right (expand), expanded -> left (collapse)
+                icon.innerHTML = collapsed
+                    ? '<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9 5l7 7-7 7\" />'
+                    : '<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 19l-7-7 7-7\" />';
+            };
+
+            const applyState = (collapsed) => {
+                body.classList.toggle('sidebar-collapsed', collapsed);
+                toggle.setAttribute('aria-expanded', (!collapsed).toString());
+                setIcon(collapsed);
+            };
+
+            const initial = localStorage.getItem('sidebarCollapsed') === '1';
+            applyState(initial);
+
+            toggle.addEventListener('click', () => {
+                const collapsed = !body.classList.contains('sidebar-collapsed');
+                applyState(collapsed);
+                localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+            });
+        })();
+    </script>
 </body>
 </html>

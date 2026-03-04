@@ -12,6 +12,7 @@ new #[Layout('layouts.app')] class extends Component
     public string $student_query = '';
     public string $title = '';
     public string $message = '';
+    public array $expandedIds = [];
 
     public function mount(Request $request): void
     {
@@ -83,6 +84,15 @@ new #[Layout('layouts.app')] class extends Component
             ->get();
     }
 
+    public function toggle(int $id): void
+    {
+        if (in_array($id, $this->expandedIds, true)) {
+            $this->expandedIds = array_values(array_filter($this->expandedIds, fn ($i) => $i !== $id));
+        } else {
+            $this->expandedIds[] = $id;
+        }
+    }
+
     public function deleteAnnouncement(int $id): void
     {
         Announcement::query()
@@ -115,6 +125,9 @@ new #[Layout('layouts.app')] class extends Component
             'student_id' => $student->id,
             'title' => $validated['title'],
             'message' => $validated['message'],
+            'sender_type' => 'teacher',
+            'sender_id' => $teacher->id,
+            'parent_id' => null,
         ]);
 
         $this->reset(['student_id', 'student_query', 'title', 'message']);

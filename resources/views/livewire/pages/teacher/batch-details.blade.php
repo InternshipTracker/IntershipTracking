@@ -63,7 +63,7 @@ new #[Layout('layouts.app')] class extends Component
     <div class="flex items-center justify-between">
         <div>
             <a href="{{ route('teacher.students') }}" wire:navigate class="text-sm text-indigo-600 hover:text-indigo-700">← Back to Batches</a>
-            <h1 class="text-2xl font-semibold mt-1">Batch #{{ $batch->id }}</h1>
+            <h1 class="text-2xl font-semibold mt-1">Batch #{{ str_pad($batch->batch_number ?? $batch->id, 4, '0', STR_PAD_LEFT) }}</h1>
             <p class="text-sm text-slate-600">{{ $batch->company_name }}</p>
         </div>
 

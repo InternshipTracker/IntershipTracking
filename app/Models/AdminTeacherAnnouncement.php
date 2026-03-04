@@ -13,6 +13,9 @@ class AdminTeacherAnnouncement extends Model
         'title',
         'message',
         'read_at',
+        'sender_type',
+        'sender_id',
+        'parent_id',
     ];
 
     protected $casts = [

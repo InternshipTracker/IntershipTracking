@@ -70,6 +70,7 @@ Route::middleware('auth')->group(function () {
         Volt::route('admin-announcements', 'pages.teacher.admin-announcements')->name('admin-announcements');
         Volt::route('announcements', 'pages.teacher.announcements')->name('announcements');
         Volt::route('approved-students', 'pages.teacher.approved-students')->name('approved-students');
+        Volt::route('ending-batches', 'pages.teacher.ending-batches')->name('ending-batches');
     });
 
     Route::middleware('role:student')->prefix('student')->name('student.')->group(function () {

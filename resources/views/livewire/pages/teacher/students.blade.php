@@ -173,7 +173,7 @@ new #[Layout('layouts.app')] class extends Component
                         </td>
                         <td class="p-4">
                             <a href="{{ route('teacher.batch.details', $batch->id) }}" wire:navigate class="text-indigo-600 font-semibold hover:text-indigo-800 hover:underline">
-                                #{{ str_pad($batch->id, 4, '0', STR_PAD_LEFT) }}
+                                #{{ str_pad($batch->batch_number ?? $batch->id, 4, '0', STR_PAD_LEFT) }}
                             </a>
                         </td>
                         <td class="p-4">

@@ -3,6 +3,7 @@
 use App\Models\Batch;
 use App\Models\Internship;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
@@ -15,6 +16,7 @@ new #[Layout('layouts.app')] class extends Component
     public string $letter_content = '';
     public ?int $rejectInternshipId = null;
     public string $reject_reason = '';
+    public string $batch_number_input = '';
 
     public function internships()
     {
@@ -63,6 +65,10 @@ new #[Layout('layouts.app')] class extends Component
         $this->selectedInternshipId = $internship->id;
         $this->student_name = $internship->student->name;
         $this->letter_content = "This is to certify that {$internship->student->name} is permitted to continue internship at {$internship->company_name}.";
+
+        // Suggest next batch number for this teacher
+        $nextNumber = (int) (Batch::where('teacher_id', $internship->teacher_id)->max('batch_number') ?? 0) + 1;
+        $this->batch_number_input = (string) $nextNumber;
     }
 
     public function confirmApprove(): void
@@ -71,6 +77,7 @@ new #[Layout('layouts.app')] class extends Component
             'selectedInternshipId' => ['required', 'exists:internships,id'],
             'student_name' => ['required', 'string', 'max:255'],
             'letter_content' => ['required', 'string', 'max:5000'],
+            'batch_number_input' => ['required', 'integer', 'min:1', 'max:99999'],
         ]);
 
         $internship = Internship::query()
@@ -78,21 +85,51 @@ new #[Layout('layouts.app')] class extends Component
             ->where('teacher_id', auth()->id())
             ->findOrFail($validated['selectedInternshipId']);
 
-        $batch = Batch::firstOrCreate([
-            'company_name' => trim($internship->company_name),
-            'department_id' => $internship->department_id,
-            'class' => $internship->student->class,
-            'teacher_id' => $internship->teacher_id,
-        ]);
+        $batchNumber = (int) $validated['batch_number_input'];
 
-        // Set batch_number (teacher-wise sequence) and status
-        if (!$batch->batch_number) {
-            // If teacher has no batches, start at 1
-            $previousBatch = Batch::where('teacher_id', $internship->teacher_id)->orderBy('batch_number', 'desc')->first();
-            $batch->batch_number = $previousBatch ? ($previousBatch->batch_number + 1) : 1;
-            $batch->status = 'Active';
-            $batch->save();
+        // Reuse existing active batch for same company/department/class/teacher
+        $existingBatch = Batch::query()
+            ->where('teacher_id', $internship->teacher_id)
+            ->where('department_id', $internship->department_id)
+            ->where('class', $internship->student->class)
+            ->where('company_name', trim($internship->company_name))
+            ->where('status', 'Active')
+            ->first();
+
+        // Limit to 25 active batches per teacher unless reusing an existing one
+        $activeBatchCount = Batch::query()
+            ->where('teacher_id', auth()->id())
+            ->where('status', 'Active')
+            ->count();
+
+        if (!$existingBatch && $activeBatchCount >= 25) {
+            session()->flash('status', 'You already have 25 active batches. End a batch before approving a new internship.');
+            return;
         }
+
+        // If creating new batch, ensure batch number unique per teacher
+        if (!$existingBatch) {
+            $numberTaken = Batch::query()
+                ->where('teacher_id', auth()->id())
+                ->where('batch_number', $batchNumber)
+                ->exists();
+
+            if ($numberTaken) {
+                session()->flash('status', "Batch number {$batchNumber} is already used. Choose another number or reuse the existing batch.");
+                return;
+            }
+        }
+
+        $batch = $existingBatch ?? DB::transaction(function () use ($internship, $batchNumber) {
+            return Batch::create([
+                'company_name' => trim($internship->company_name),
+                'department_id' => $internship->department_id,
+                'class' => $internship->student->class,
+                'teacher_id' => $internship->teacher_id,
+                'batch_number' => $batchNumber,
+                'status' => 'Active',
+            ]);
+        });
 
         $pdf = Pdf::loadView('pdfs.approval-letter', [
             'college' => 'Sangamner College, Sangamner',
@@ -113,8 +150,8 @@ new #[Layout('layouts.app')] class extends Component
             'approved_at' => now(),
         ]);
 
-        $this->reset(['selectedInternshipId', 'student_name', 'letter_content']);
-        session()->flash('status', 'Internship approved! Student assigned to Batch #'.$batch->id.'.');
+        $this->reset(['selectedInternshipId', 'student_name', 'letter_content', 'batch_number_input']);
+        session()->flash('status', 'Internship approved! Student assigned to Batch #'.$batch->batch_number.'.');
     }
 }; ?>
 
@@ -202,6 +239,13 @@ new #[Layout('layouts.app')] class extends Component
                 <x-input-label value="Student Name" />
                 <x-text-input wire:model="student_name" class="w-full mt-1" />
                 <x-input-error :messages="$errors->get('student_name')" class="mt-2" />
+            </div>
+
+            <div>
+                <x-input-label value="Batch Number (set by you)" />
+                <x-text-input wire:model="batch_number_input" type="number" min="1" max="99999" class="w-full mt-1" />
+                <x-input-error :messages="$errors->get('batch_number_input')" class="mt-2" />
+                <p class="text-xs text-slate-500 mt-1">Max 25 active batches per teacher. Reused automatically when same company & class.</p>
             </div>
 
             <div>

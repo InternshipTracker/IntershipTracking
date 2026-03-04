@@ -20,7 +20,7 @@
                     <img
                         src="{{ $profilePhotoUrl }}"
                         alt="Profile"
-                        class="h-20 w-20 rounded-full object-cover border border-slate-200"
+                        style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #2652f1; background: #fff; box-shadow: 0 2px 8px #0001;"
                     />
                     <div>
                         <h3 class="text-lg font-semibold text-slate-900">{{ auth()->user()->name }}</h3>
