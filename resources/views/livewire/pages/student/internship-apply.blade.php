@@ -23,8 +23,8 @@ new #[Layout('layouts.app')] class extends Component
     public function mount(): void
     {
         $existingInternship = Internship::where('student_id', auth()->id())->latest()->first();
-        // Allow re-apply if internship is missing, batch deleted, or previous application was rejected
-        if ($existingInternship && $existingInternship->batch_id && Batch::find($existingInternship->batch_id) && $existingInternship->status !== 'rejected') {
+
+        if ($existingInternship && $existingInternship->status !== 'rejected') {
             session()->flash('info', 'You have already applied for an internship.');
             $this->redirect(route('student.dashboard'), navigate: true);
         }
@@ -68,27 +68,12 @@ new #[Layout('layouts.app')] class extends Component
 
         $joiningLetterPath = $this->joining_letter->store('joining_letters', 'public');
 
-            $batch = Batch::firstOrCreate([
-                'company_name' => trim($validated['company_name']),
-                'department_id' => $student->department_id,
-                'class' => $student->class,
-                'teacher_id' => $validated['teacher_id'],
-            ]);
-
-            // Set batch_number (teacher-wise sequence) and status
-            if (!$batch->batch_number) {
-                $previousBatch = Batch::where('teacher_id', $validated['teacher_id'])->orderBy('batch_number', 'desc')->first();
-                $batch->batch_number = $previousBatch ? ($previousBatch->batch_number + 1) : 1;
-                $batch->status = 'Active';
-                $batch->save();
-            }
-
         Internship::create([
             'student_id' => $student->id,
             'teacher_id' => $teacher->id,
             'coordinator_id' => $teacher->id,
             'department_id' => $student->department_id,
-            'batch_id' => $batch->id,
+            'batch_id' => null,
             'company_name' => trim($validated['company_name']),
             'duration' => $validated['duration'],
             'start_date' => $validated['start_date'],

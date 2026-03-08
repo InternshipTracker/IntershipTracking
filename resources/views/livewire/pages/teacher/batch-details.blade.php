@@ -9,6 +9,8 @@ new #[Layout('layouts.app')] class extends Component
 {
     public Batch $batch;
     public ?int $selectedStudentId = null;
+    public string $backRoute = 'teacher.students';
+    public string $backLabel = 'Back to Batches';
 
     public function mount(Batch $batch): void
     {
@@ -23,6 +25,11 @@ new #[Layout('layouts.app')] class extends Component
         }
 
         $this->batch = $batch;
+
+        if (request()->query('from') === 'ending-batches') {
+            $this->backRoute = 'teacher.ending-batches';
+            $this->backLabel = 'Back to Ending Batches';
+        }
     }
 
     public function members()
@@ -32,7 +39,8 @@ new #[Layout('layouts.app')] class extends Component
             ->where('teacher_id', auth()->id())
             ->where('batch_id', $this->batch->id)
             ->where('status', 'approved')
-            ->latest()
+            ->orderByDesc('end_date')
+            ->latest('id')
             ->get();
     }
 
@@ -62,7 +70,7 @@ new #[Layout('layouts.app')] class extends Component
 <div class="space-y-6">
     <div class="flex items-center justify-between">
         <div>
-            <a href="{{ route('teacher.students') }}" wire:navigate class="text-sm text-indigo-600 hover:text-indigo-700">← Back to Batches</a>
+            <a href="{{ route($backRoute) }}" wire:navigate class="text-sm text-indigo-600 hover:text-indigo-700">← {{ $backLabel }}</a>
             <h1 class="text-2xl font-semibold mt-1">Batch #{{ str_pad($batch->batch_number ?? $batch->id, 4, '0', STR_PAD_LEFT) }}</h1>
             <p class="text-sm text-slate-600">{{ $batch->company_name }}</p>
         </div>
@@ -76,6 +84,21 @@ new #[Layout('layouts.app')] class extends Component
         <div class="bg-green-50 text-green-700 border border-green-200 rounded-lg p-3 text-sm">{{ session('status') }}</div>
     @endif
 
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Batch Status</p>
+            <p class="mt-2 text-xl font-bold text-slate-900">{{ $batch->status }}</p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Students</p>
+            <p class="mt-2 text-xl font-bold text-slate-900">{{ $this->members()->count() }}</p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Class</p>
+            <p class="mt-2 text-xl font-bold text-slate-900">{{ strtoupper($batch->class ?? 'N/A') }}</p>
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Members Table -->
         <div class="lg:col-span-2">
@@ -86,6 +109,8 @@ new #[Layout('layouts.app')] class extends Component
                             <th class="p-3 text-left font-semibold">Student</th>
                             <th class="p-3 text-left font-semibold">Username</th>
                             <th class="p-3 text-left font-semibold">Class</th>
+                            <th class="p-3 text-left font-semibold">Internship Period</th>
+                            <th class="p-3 text-left font-semibold">Status</th>
                             <th class="p-3 text-right font-semibold">Action</th>
                         </tr>
                     </thead>
@@ -106,6 +131,16 @@ new #[Layout('layouts.app')] class extends Component
                                 </td>
                                 <td class="p-3">{{ $entry->student?->username ?? '-' }}</td>
                                 <td class="p-3">{{ $entry->student?->class ?? '-' }}</td>
+                                <td class="p-3 text-slate-600">
+                                    {{ $entry->start_date?->format('d M Y') ?? '-' }} - {{ $entry->end_date?->format('d M Y') ?? '-' }}
+                                </td>
+                                <td class="p-3">
+                                    @if ($entry->end_date && $entry->end_date->isPast())
+                                        <span class="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">Completed</span>
+                                    @else
+                                        <span class="inline-flex rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">Active</span>
+                                    @endif
+                                </td>
                                 <td class="p-3 text-right space-x-2">
                                     @if ($entry->student)
                                         <a href="{{ route('teacher.student.progress', $entry->student->id) }}" wire:navigate class="inline-flex px-3 py-1.5 text-xs rounded-md border border-indigo-300 text-indigo-700 hover:bg-indigo-50">Progress</a>
@@ -115,7 +150,7 @@ new #[Layout('layouts.app')] class extends Component
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="p-4 text-center text-slate-500">No students found in this batch.</td>
+                                <td colspan="6" class="p-4 text-center text-slate-500">No students found in this batch.</td>
                             </tr>
                         @endforelse
                     </tbody>

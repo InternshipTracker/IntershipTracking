@@ -142,12 +142,12 @@ new #[Layout('layouts.app')] class extends Component
 <div class="space-y-6">
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-            <h1 class="text-2xl font-semibold">Welcome, {{ auth()->user()->name }}</h1>
-            <p class="text-sm text-slate-500 mt-1">Quick snapshot of your students and internships.</p>
+            <h1 class="text-2xl font-semibold text-[color:var(--page-text)]">Welcome, {{ auth()->user()->name }}</h1>
+            <p class="mt-1 text-sm text-[color:var(--page-muted)]">Quick snapshot of your students and internships.</p>
         </div>
         <div class="text-right">
-            <p class="text-xs text-slate-500 uppercase tracking-wide">Department</p>
-            <p class="text-sm font-semibold text-indigo-700">{{ auth()->user()->department?->name ?? 'No Department Assigned' }}</p>
+            <p class="text-xs uppercase tracking-wide text-[color:var(--page-muted)]">Department</p>
+            <p class="text-sm font-semibold text-[color:var(--accent-600)]">{{ auth()->user()->department?->name ?? 'No Department Assigned' }}</p>
         </div>
     </div>
 
@@ -155,7 +155,8 @@ new #[Layout('layouts.app')] class extends Component
         <div class="bg-green-50 text-green-700 border border-green-200 rounded-lg p-3 text-sm">{{ session('status') }}</div>
     @endif
 
-    <div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl border border-indigo-200 p-5 shadow-sm">
+    <div class="rounded-xl border p-5 shadow-sm"
+        style="background: linear-gradient(135deg, rgb(var(--accent-rgb) / 0.14), rgb(var(--accent-rgb) / 0.04) 52%, transparent 100%), var(--panel-bg); border-color: rgb(var(--accent-rgb) / 0.24); box-shadow: var(--panel-shadow);">
         <div class="flex items-center gap-3 mb-3">
             <div class="bg-indigo-600 rounded-full p-3">
                 <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -163,54 +164,54 @@ new #[Layout('layouts.app')] class extends Component
                 </svg>
             </div>
             <div>
-                <p class="text-sm text-slate-600 mb-1">Teacher Snapshot</p>
-                <p class="text-lg font-semibold text-indigo-900">{{ auth()->user()->name }}</p>
-                <p class="text-sm text-slate-600">Classes: {{ implode(', ', $this->assignedClasses()) ?: 'Not assigned' }}</p>
+                <p class="mb-1 text-sm text-[color:var(--page-muted)]">Teacher Snapshot</p>
+                <p class="text-lg font-semibold text-[color:var(--page-text)]">{{ auth()->user()->name }}</p>
+                <p class="text-sm text-[color:var(--page-muted)]">Classes: {{ implode(', ', $this->assignedClasses()) ?: 'Not assigned' }}</p>
             </div>
         </div>
-        <p class="text-sm text-slate-700">Keep track of your department, pending approvals, and active internships from one place.</p>
+        <p class="text-sm text-[color:var(--page-text)]">Keep track of your department, pending approvals, and active internships from one place.</p>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div class="rounded-2xl p-5 shadow-md text-slate-900" style="background: linear-gradient(135deg,#b7f5d5,#e8fff0);">
+        <div class="rounded-2xl border p-5 shadow-md" style="background: linear-gradient(145deg, rgb(16 185 129 / 0.2), rgb(16 185 129 / 0.06) 45%, var(--panel-bg)); border-color: rgb(16 185 129 / 0.22); box-shadow: var(--panel-shadow);">
             <div class="flex items-start justify-between">
                 <div>
-                    <p class="text-sm font-semibold text-slate-600">Pending Internships</p>
-                    <p class="text-3xl font-bold mt-2">{{ $this->pendingInternships() }}</p>
-                    <p class="text-xs text-emerald-700 mt-2">Awaiting your approval</p>
+                    <p class="text-sm font-semibold text-[color:var(--page-muted)]">Pending Internships</p>
+                    <p class="mt-2 text-3xl font-bold text-[color:var(--page-text)]">{{ $this->pendingInternships() }}</p>
+                    <p class="mt-2 text-xs text-emerald-700">Awaiting your approval</p>
                 </div>
                 <div class="w-11 h-11 rounded-full bg-emerald-500 text-white flex items-center justify-center text-lg">📂</div>
             </div>
         </div>
 
-        <div class="rounded-2xl p-5 shadow-md text-slate-900" style="background: linear-gradient(135deg,#ffe0f1,#fff5fb);">
+        <div class="rounded-2xl border p-5 shadow-md" style="background: linear-gradient(145deg, rgb(244 63 94 / 0.2), rgb(244 63 94 / 0.06) 45%, var(--panel-bg)); border-color: rgb(244 63 94 / 0.22); box-shadow: var(--panel-shadow);">
             <div class="flex items-start justify-between">
                 <div>
-                    <p class="text-sm font-semibold text-slate-600">Approved Internships</p>
-                    <p class="text-3xl font-bold mt-2">{{ $this->approvedInternships() }}</p>
-                    <p class="text-xs text-rose-700 mt-2">Total approved by you</p>
+                    <p class="text-sm font-semibold text-[color:var(--page-muted)]">Approved Internships</p>
+                    <p class="mt-2 text-3xl font-bold text-[color:var(--page-text)]">{{ $this->approvedInternships() }}</p>
+                    <p class="mt-2 text-xs text-rose-700">Total approved by you</p>
                 </div>
                 <div class="w-11 h-11 rounded-full bg-rose-500 text-white flex items-center justify-center text-lg">✅</div>
             </div>
         </div>
 
-        <div class="rounded-2xl p-5 shadow-md text-slate-900" style="background: linear-gradient(135deg,#dce9ff,#f4f7ff);">
+        <div class="rounded-2xl border p-5 shadow-md" style="background: linear-gradient(145deg, rgb(var(--accent-rgb) / 0.2), rgb(var(--accent-rgb) / 0.06) 45%, var(--panel-bg)); border-color: rgb(var(--accent-rgb) / 0.22); box-shadow: var(--panel-shadow);">
             <div class="flex items-start justify-between">
                 <div>
-                    <p class="text-sm font-semibold text-slate-600">Active Internships</p>
-                    <p class="text-3xl font-bold mt-2">{{ $this->activeInternships() }}</p>
-                    <p class="text-xs text-indigo-700 mt-2">Currently running</p>
+                    <p class="text-sm font-semibold text-[color:var(--page-muted)]">Active Internships</p>
+                    <p class="mt-2 text-3xl font-bold text-[color:var(--page-text)]">{{ $this->activeInternships() }}</p>
+                    <p class="mt-2 text-xs text-[color:var(--accent-700)]">Currently running</p>
                 </div>
                 <div class="w-11 h-11 rounded-full bg-indigo-500 text-white flex items-center justify-center text-lg">🚀</div>
             </div>
         </div>
 
-        <div class="rounded-2xl p-5 shadow-md text-slate-900" style="background: linear-gradient(135deg,#fff0d6,#fff9ed);">
+        <div class="rounded-2xl border p-5 shadow-md" style="background: linear-gradient(145deg, rgb(245 158 11 / 0.2), rgb(245 158 11 / 0.06) 45%, var(--panel-bg)); border-color: rgb(245 158 11 / 0.22); box-shadow: var(--panel-shadow);">
             <div class="flex items-start justify-between">
                 <div>
-                    <p class="text-sm font-semibold text-slate-600">Pending Student Requests</p>
-                    <p class="text-3xl font-bold mt-2">{{ $this->pendingStudentRequests() }}</p>
-                    <p class="text-xs text-amber-700 mt-2">Students awaiting approval</p>
+                    <p class="text-sm font-semibold text-[color:var(--page-muted)]">Pending Student Requests</p>
+                    <p class="mt-2 text-3xl font-bold text-[color:var(--page-text)]">{{ $this->pendingStudentRequests() }}</p>
+                    <p class="mt-2 text-xs text-amber-700">Students awaiting approval</p>
                 </div>
                 <div class="w-11 h-11 rounded-full bg-amber-500 text-white flex items-center justify-center text-lg">👥</div>
             </div>

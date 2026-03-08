@@ -9,24 +9,34 @@ new #[Layout('layouts.app')] class extends Component
 {
     public array $expandedBatchIds = [];
 
+    protected function activeInternshipScope($query)
+    {
+        return $query
+            ->where('teacher_id', auth()->id())
+            ->where('status', 'approved')
+            ->where(function ($activeQuery) {
+                $activeQuery
+                    ->whereNull('end_date')
+                    ->orWhereDate('end_date', '>=', now()->toDateString());
+            });
+    }
+
     public function batches()
     {
         return Batch::query()
             ->with(['department', 'internships' => function ($query) {
-                $query->where('teacher_id', auth()->id())
-                    ->where('status', 'approved')
+                $this->activeInternshipScope($query)
                     ->with('student');
             }])
             ->withCount([
                 'internships as members_count' => function ($query) {
-                    $query->where('teacher_id', auth()->id())
-                        ->where('status', 'approved');
+                    $this->activeInternshipScope($query);
                 },
             ])
             ->whereHas('internships', function ($query) {
-                $query->where('teacher_id', auth()->id())
-                    ->where('status', 'approved');
+                $this->activeInternshipScope($query);
             })
+            ->where('status', 'Active')
             ->latest('id')
             ->get();
     }
@@ -78,9 +88,8 @@ new #[Layout('layouts.app')] class extends Component
     {
         return Internship::query()
             ->with('student')
-            ->where('teacher_id', auth()->id())
             ->where('batch_id', $batchId)
-            ->where('status', 'approved')
+            ->tap(fn ($query) => $this->activeInternshipScope($query))
             ->latest()
             ->get();
     }

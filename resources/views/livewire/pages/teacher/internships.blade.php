@@ -66,9 +66,7 @@ new #[Layout('layouts.app')] class extends Component
         $this->student_name = $internship->student->name;
         $this->letter_content = "This is to certify that {$internship->student->name} is permitted to continue internship at {$internship->company_name}.";
 
-        // Suggest next batch number for this teacher
-        $nextNumber = (int) (Batch::where('teacher_id', $internship->teacher_id)->max('batch_number') ?? 0) + 1;
-        $this->batch_number_input = (string) $nextNumber;
+        $this->batch_number_input = (string) Batch::nextAvailableNumberForTeacher($internship->teacher_id);
     }
 
     public function confirmApprove(): void
@@ -107,15 +105,16 @@ new #[Layout('layouts.app')] class extends Component
             return;
         }
 
-        // If creating new batch, ensure batch number unique per teacher
+        // If creating new batch, only active batches should reserve the number.
         if (!$existingBatch) {
             $numberTaken = Batch::query()
                 ->where('teacher_id', auth()->id())
+                ->where('status', 'Active')
                 ->where('batch_number', $batchNumber)
                 ->exists();
 
             if ($numberTaken) {
-                session()->flash('status', "Batch number {$batchNumber} is already used. Choose another number or reuse the existing batch.");
+                session()->flash('status', "Batch number {$batchNumber} is already active. Use another number or the suggested free batch number.");
                 return;
             }
         }
@@ -245,7 +244,7 @@ new #[Layout('layouts.app')] class extends Component
                 <x-input-label value="Batch Number (set by you)" />
                 <x-text-input wire:model="batch_number_input" type="number" min="1" max="99999" class="w-full mt-1" />
                 <x-input-error :messages="$errors->get('batch_number_input')" class="mt-2" />
-                <p class="text-xs text-slate-500 mt-1">Max 25 active batches per teacher. Reused automatically when same company & class.</p>
+                <p class="text-xs text-slate-500 mt-1">Max 25 active batches per teacher. Ended batch numbers can be reused automatically, and same company plus class stays in the same active batch.</p>
             </div>
 
             <div>

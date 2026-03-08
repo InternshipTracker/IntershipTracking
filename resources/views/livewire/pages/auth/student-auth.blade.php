@@ -65,25 +65,19 @@ new #[Layout('layouts.blank')] class extends Component
     }
 }; ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Portal - Internship Tracking</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    @livewireStyles
+<div class="auth-page-shell">
     <style>
         :root {
-            /* Restored your original colors */
             --primary: #2652f1;
-            --primary-hover: #1e40af; 
+            --primary-hover: #1e40af;
             --secondary: #ec4899;
             --bg-color: #f4d9c3;
             --text-dark: #1f2937;
             --text-muted: #6b7280;
             --border-color: #e5e7eb;
             --input-bg: #f9fafb;
+            --card-bg: #ffffff;
+            --image-pane-bg: #e5e7eb;
         }
 
         * {
@@ -94,7 +88,6 @@ new #[Layout('layouts.blank')] class extends Component
         }
 
         body {
-            /* Restored your original background gradient */
             background: radial-gradient(circle at 10% 20%, #ffffff 0%, #fdebd3 35%, #f4d9c3 60%);
             min-height: 100vh;
             display: flex;
@@ -102,6 +95,13 @@ new #[Layout('layouts.blank')] class extends Component
             align-items: center;
             padding: 2rem;
             color: var(--text-dark);
+        }
+
+        .auth-page-shell {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         /* Perfect Proportions for the main card */
@@ -122,7 +122,7 @@ new #[Layout('layouts.blank')] class extends Component
         .left-pane {
             width: 50%;
             position: relative;
-            background-color: #e5e7eb;
+            background-color: var(--image-pane-bg);
         }
 
         .left-pane img {
@@ -186,7 +186,7 @@ new #[Layout('layouts.blank')] class extends Component
 
         /* Form Card Styling */
         .form-card {
-            background: #fff;
+            background: var(--card-bg);
             border: 1px solid var(--border-color);
             border-radius: 16px;
             padding: 1.75rem;
@@ -212,7 +212,7 @@ new #[Layout('layouts.blank')] class extends Component
             border: 1.5px solid var(--border-color);
             border-radius: 10px;
             font-size: 0.95rem;
-            color: #111827; /* Dark black text for readability */
+            color: var(--text-dark);
             font-weight: 500;
             background-color: var(--input-bg);
             transition: all 0.3s ease;
@@ -308,7 +308,7 @@ new #[Layout('layouts.blank')] class extends Component
 
         /* Success Message Styling */
         .success-card {
-            background: #fff;
+            background: var(--card-bg);
             border: 1px solid var(--border-color);
             border-radius: 16px;
             padding: 3rem 2rem;
@@ -364,9 +364,7 @@ new #[Layout('layouts.blank')] class extends Component
             }
         }
     </style>
-</head>
 
-<body>
     <div class="auth-wrapper">
         <div class="left-pane">
             <img src="{{ asset('images/sangamner_clg.jpeg') }}" alt="Sangamner College Campus">
@@ -520,8 +518,7 @@ new #[Layout('layouts.blank')] class extends Component
         </div>
     </div>
 
-    @livewireScripts
-        <script>
+    <script>
             // Initialize form switcher logic
             const initSwitcher = () => {
                 const loginSection = document.getElementById('login-section');
@@ -557,10 +554,11 @@ new #[Layout('layouts.blank')] class extends Component
             // Run on load and after Livewire updates
             document.addEventListener('DOMContentLoaded', initSwitcher);
             document.addEventListener('livewire:navigated', initSwitcher);
-            
-            Livewire.hook('morph.updated', ({ el, component }) => {
-                initSwitcher();
-            });
-        </script>
-</body>
-</html>
+
+            if (window.Livewire) {
+                Livewire.hook('morph.updated', () => {
+                    initSwitcher();
+                });
+            }
+    </script>
+</div>

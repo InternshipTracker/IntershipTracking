@@ -252,13 +252,15 @@ new #[Layout('layouts.app')] class extends Component
         @endif
     </div>
 
-    <div class="bg-white rounded-2xl border-2 border-indigo-300 shadow-xl p-6 animate-fade-in">
-        <h2 class="font-semibold mb-3">Sent Announcements</h2>
+    <div class="animate-fade-in rounded-2xl border p-6 shadow-xl"
+        style="background: linear-gradient(135deg, rgb(var(--accent-rgb) / 0.08), transparent 34%), var(--panel-bg); border-color: var(--panel-border); box-shadow: var(--panel-shadow);">
+        <h2 class="mb-3 font-semibold text-[color:var(--page-text)]">Sent Announcements</h2>
         <ul class="space-y-3 text-sm">
             @forelse ($this->announcements() as $item)
-                <li class="border-2 border-indigo-200 rounded-xl p-4 shadow-md bg-gradient-to-br from-white via-indigo-50 to-indigo-100">
+                <li class="rounded-xl border p-4 shadow-md"
+                    style="background: linear-gradient(145deg, rgb(var(--accent-rgb) / 0.08), transparent 28%), var(--surface-soft); border-color: var(--panel-border); box-shadow: 0 12px 26px rgb(1 5 14 / 0.16);">
                     <div class="flex items-center justify-between gap-3">
-                        <div class="font-medium">{{ $item->title }} → {{ $item->student?->name }}</div>
+                        <div class="font-medium text-[color:var(--page-text)]">{{ $item->title }} → {{ $item->student?->name }}</div>
                         <div class="flex items-center gap-2">
                             @if ($item->read_at)
                                 <span class="inline-flex px-2 py-1 rounded-full text-[11px] bg-green-100 text-green-700">Read</span>
@@ -268,13 +270,13 @@ new #[Layout('layouts.app')] class extends Component
                             <button wire:click="deleteAnnouncement({{ $item->id }})" class="px-2 py-1 text-xs rounded-md border border-red-300 text-red-700 hover:bg-red-50">Delete</button>
                         </div>
                     </div>
-                    <div class="text-slate-600 mt-1">{{ $item->message }}</div>
+                    <div class="mt-1 text-[color:var(--page-muted)]">{{ $item->message }}</div>
                     @if ($item->read_at)
-                        <div class="text-xs text-slate-500 mt-2">Read at: {{ $item->read_at->format('d M Y h:i A') }}</div>
+                        <div class="mt-2 text-xs text-[color:var(--page-muted)]">Read at: {{ $item->read_at->format('d M Y h:i A') }}</div>
                     @endif
                 </li>
             @empty
-                <li class="text-slate-500">No announcements yet.</li>
+                <li class="text-[color:var(--page-muted)]">No announcements yet.</li>
             @endforelse
         </ul>
     </div>

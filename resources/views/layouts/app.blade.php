@@ -14,7 +14,6 @@
         /* Sidebar + shell layout tweaks (collapsible) */
         .sidebar {
             width: 16rem; /* slightly slimmer */
-            background: #0f172a; /* slate-900 to match original */
             transition: width 0.25s ease;
         }
 
@@ -60,19 +59,15 @@
 
         /* keep header toggle button aligned */
         #sidebarToggle {
-            background: #1b3760;
-            color: #e5e7eb;
-            border: 1px solid #243c5f;
             transition: transform 0.2s ease, background 0.2s ease;
         }
 
         #sidebarToggle:hover {
-            background: #234673;
             transform: translateY(-1px);
         }
     </style>
 </head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
+<body data-theme-user="{{ auth()->id() }}" class="theme-enabled min-h-screen bg-slate-100 text-slate-900 antialiased">
     @php
         $user = auth()->user();
         $role = $user?->role;
@@ -117,8 +112,11 @@
         $endingBatchCount = $role === 'teacher'
             ? \App\Models\Batch::query()
                 ->where('teacher_id', $user?->id)
-                ->where('status', 'Active')
-                ->whereHas('internships', function($q){ $q->whereDate('end_date', '<', now()->toDateString()); })
+                ->whereHas('internships', function ($q) use ($user) {
+                    $q->where('teacher_id', $user?->id)
+                        ->where('status', 'approved')
+                        ->whereDate('end_date', '<', now()->toDateString());
+                })
                 ->count()
             : 0;
 
@@ -178,7 +176,7 @@
             : false;
 
         $profilePhotoUrl = $profilePhotoExists
-            ? Storage::disk('public')->url($normalizedProfilePhotoPath)
+            ? Storage::url($normalizedProfilePhotoPath)
             : ($user?->role === 'teacher'
                 ? asset('/images/default-teacher.png')
                 : asset('/images/default-user.png'));
@@ -254,6 +252,7 @@
                 </div>
 
                 <div class="flex items-center gap-4">
+                    @include('partials.theme-switcher')
                     @if ($notificationRoute)
                         <a href="{{ $notificationRoute }}" wire:navigate class="relative inline-flex items-center justify-center h-10 w-10 rounded-full border border-slate-300 hover:bg-slate-50" title="Notifications">
                             <svg class="h-5 w-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">

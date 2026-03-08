@@ -73,17 +73,18 @@ new #[Layout('layouts.app')] class extends Component
         <div>
             <div class="flex items-center justify-between">
                 <div>
-                    <a href="{{ route('superadmin.dashboard') }}" wire:navigate class="text-sm text-indigo-600 hover:text-indigo-700">← Back to Dashboard</a>
-                    <h1 class="text-3xl font-bold text-slate-900 mt-1">Department Management</h1>
+                    <a href="{{ route('superadmin.dashboard') }}" wire:navigate class="text-sm font-medium text-[color:var(--accent-600)] hover:text-[color:var(--accent-700)]">← Back to Dashboard</a>
+                    <h1 class="mt-1 text-3xl font-bold text-[color:var(--page-text)]">Department Management</h1>
                 </div>
             </div>
-            <p class="text-slate-600 mt-1">Organize and manage academic departments</p>
+            <p class="mt-1 text-[color:var(--page-muted)]">Organize and manage academic departments</p>
         </div>
-        <div class="flex items-center gap-2 px-4 py-2 bg-indigo-50 rounded-lg border border-indigo-200">
-            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="flex items-center gap-2 rounded-xl border px-4 py-2 shadow-sm backdrop-blur-sm"
+            style="background: linear-gradient(135deg, rgb(var(--accent-rgb) / 0.14), rgb(var(--accent-rgb) / 0.06)); border-color: rgb(var(--accent-rgb) / 0.24);">
+            <svg class="h-5 w-5 text-[color:var(--accent-600)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
             </svg>
-            <span class="text-sm font-semibold text-indigo-900">{{ $this->departments()->count() }} Departments</span>
+            <span class="text-sm font-semibold text-[color:var(--page-text)]">{{ $this->departments()->count() }} Departments</span>
         </div>
     </div>
 
@@ -120,7 +121,8 @@ new #[Layout('layouts.app')] class extends Component
     </div>
 
     <!-- Add Department Form -->
-    <div class="bg-gradient-to-br from-white to-indigo-50 rounded-2xl border-2 border-indigo-100 shadow-lg p-6">
+    <div class="rounded-3xl border p-6 shadow-lg"
+        style="background: linear-gradient(145deg, rgb(var(--accent-rgb) / 0.12), rgb(255 255 255 / 0.02) 24%), var(--panel-bg); border-color: var(--panel-border); box-shadow: var(--panel-shadow);">
         <div class="flex items-center gap-3 mb-4">
             <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center">
                 <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -128,8 +130,8 @@ new #[Layout('layouts.app')] class extends Component
                 </svg>
             </div>
             <div>
-                <h2 class="text-lg font-bold text-slate-900">{{ $editingId ? 'Edit Department' : 'Add New Department' }}</h2>
-                <p class="text-sm text-slate-600">{{ $editingId ? 'Update department information' : 'Create a new academic department' }}</p>
+                <h2 class="text-lg font-bold text-[color:var(--page-text)]">{{ $editingId ? 'Edit Department' : 'Add New Department' }}</h2>
+                <p class="text-sm text-[color:var(--page-muted)]">{{ $editingId ? 'Update department information' : 'Create a new academic department' }}</p>
             </div>
         </div>
         
@@ -156,14 +158,14 @@ new #[Layout('layouts.app')] class extends Component
                 @endif
             </button>
             @if ($editingId)
-                <button type="button" wire:click="cancelEdit" class="px-6 py-3 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-lg border-2 border-slate-300 transition-colors duration-200">
+                <button type="button" wire:click="cancelEdit" class="px-6 py-3 rounded-lg border-2 font-semibold text-[color:var(--page-text)] transition-colors duration-200 hover:bg-[rgb(var(--accent-rgb)/0.08)]" style="background: var(--panel-bg); border-color: var(--panel-border);">
                     Cancel
                 </button>
             @endif
         </form>
 
         @if (session('status'))
-            <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+            <div class="mt-4 flex items-center gap-3 rounded-lg border p-4" style="background: rgb(16 185 129 / 0.12); border-color: rgb(16 185 129 / 0.28);">
                 <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
@@ -174,8 +176,8 @@ new #[Layout('layouts.app')] class extends Component
 
     <!-- Departments Grid -->
     <div>
-        <h2 class="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <h2 class="mb-4 flex items-center gap-2 text-xl font-bold text-[color:var(--page-text)]">
+            <svg class="h-6 w-6 text-[color:var(--accent-600)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
             </svg>
             All Departments
@@ -268,14 +270,16 @@ new #[Layout('layouts.app')] class extends Component
                 </div>
             @empty
                 <div class="col-span-full">
-                    <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl border-2 border-dashed border-slate-300 p-12 text-center">
-                        <div class="w-20 h-20 mx-auto mb-4 bg-slate-200 rounded-full flex items-center justify-center">
-                            <svg class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="rounded-2xl border-2 border-dashed p-12 text-center"
+                        style="background: linear-gradient(145deg, rgb(var(--accent-rgb) / 0.08), transparent 32%), var(--surface-soft); border-color: var(--panel-border);">
+                        <div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full"
+                            style="background: rgb(var(--accent-rgb) / 0.12);">
+                            <svg class="h-10 w-10 text-[color:var(--accent-600)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                             </svg>
                         </div>
-                        <h3 class="text-lg font-bold text-slate-900 mb-2">No Departments Yet</h3>
-                        <p class="text-slate-600 mb-4">Get started by creating your first department above.</p>
+                        <h3 class="mb-2 text-lg font-bold text-[color:var(--page-text)]">No Departments Yet</h3>
+                        <p class="mb-4 text-[color:var(--page-muted)]">Get started by creating your first department above.</p>
                     </div>
                 </div>
             @endforelse

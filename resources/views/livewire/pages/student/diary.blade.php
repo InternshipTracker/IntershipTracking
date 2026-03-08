@@ -112,7 +112,7 @@ new #[Layout('layouts.app')] class extends Component
             ->findOrFail($entryId);
 
         $this->editEntryId = $entry->id;
-        $this->entry_date = $entry->entry_date->format('Y-m-d');
+        $this->entry_date = \Illuminate\Support\Carbon::parse($entry->entry_date)->format('Y-m-d');
         $this->topic = $entry->topic;
         $this->progress_description = $entry->progress_description;
         $this->what_learned = $entry->what_learned;
@@ -175,22 +175,24 @@ new #[Layout('layouts.app')] class extends Component
         <div>
             <div class="flex items-center justify-between">
                 <div>
-                    <a href="{{ route('student.dashboard') }}" wire:navigate class="text-sm text-indigo-600 hover:text-indigo-700">← Back to Dashboard</a>
-                    <h1 class="text-3xl font-bold text-slate-900 mt-1">📖 Daily Diary</h1>
+                    <a href="{{ route('student.dashboard') }}" wire:navigate class="text-sm font-medium text-[color:var(--accent-600)] hover:text-[color:var(--accent-700)]">← Back to Dashboard</a>
+                    <h1 class="mt-1 text-3xl font-bold text-[color:var(--page-text)]">📖 Daily Diary</h1>
                 </div>
             </div>
-            <p class="text-slate-600 mt-1">Document your learning journey and track your progress</p>
+            <p class="mt-1 text-[color:var(--page-muted)]">Document your learning journey and track your progress</p>
         </div>
-        <div class="flex items-center gap-2 px-4 py-2 bg-indigo-50 rounded-lg border border-indigo-200">
-            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="flex items-center gap-2 rounded-xl border px-4 py-2 shadow-sm backdrop-blur-sm"
+            style="background: linear-gradient(135deg, rgb(var(--accent-rgb) / 0.14), rgb(var(--accent-rgb) / 0.06)); border-color: rgb(var(--accent-rgb) / 0.24);">
+            <svg class="h-5 w-5 text-[color:var(--accent-600)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
             </svg>
-            <span class="text-sm font-semibold text-indigo-900">{{ $this->entries()->count() }} Entries</span>
+            <span class="text-sm font-semibold text-[color:var(--page-text)]">{{ $this->entries()->count() }} Entries</span>
         </div>
     </div>
 
     <!-- Add New Entry Form -->
-    <div class="bg-gradient-to-br from-white to-blue-50 rounded-2xl border-2 border-blue-100 shadow-xl p-6">
+    <div class="rounded-3xl border p-6 shadow-2xl backdrop-blur-sm"
+        style="background: linear-gradient(145deg, rgb(var(--accent-rgb) / 0.12), rgb(255 255 255 / 0.02) 24%), var(--panel-bg); border-color: var(--panel-border); box-shadow: var(--panel-shadow);">
         <div class="flex items-center gap-3 mb-6">
             <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
                 <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -198,8 +200,8 @@ new #[Layout('layouts.app')] class extends Component
                 </svg>
             </div>
             <div>
-                <h2 class="text-xl font-bold text-slate-900">{{ $editEntryId ? 'Edit Diary Entry' : 'Add New Entry' }}</h2>
-                <p class="text-sm text-slate-600">{{ $editEntryId ? 'Update your diary entry details' : 'Fill in your daily learning details' }}</p>
+                <h2 class="text-xl font-bold text-[color:var(--page-text)]">{{ $editEntryId ? 'Edit Diary Entry' : 'Add New Entry' }}</h2>
+                <p class="text-sm text-[color:var(--page-muted)]">{{ $editEntryId ? 'Update your diary entry details' : 'Fill in your daily learning details' }}</p>
             </div>
         </div>
         
@@ -207,12 +209,12 @@ new #[Layout('layouts.app')] class extends Component
             <!-- Row 1: Date and Topic -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <x-input-label value="📅 Date *" class="text-base font-semibold" />
+                    <x-input-label value="📅 Date *" class="text-base font-semibold text-[color:var(--page-text)]" />
                     <x-text-input wire:model="entry_date" type="date" class="w-full mt-2 h-11" />
                     <x-input-error :messages="$errors->get('entry_date')" class="mt-2" />
                 </div>
                 <div>
-                    <x-input-label value="📌 Today's Topic *" class="text-base font-semibold" />
+                    <x-input-label value="📌 Today's Topic *" class="text-base font-semibold text-[color:var(--page-text)]" />
                     <x-text-input wire:model="topic" class="w-full mt-2 h-11" placeholder="e.g., React Components, Database Design" />
                     <x-input-error :messages="$errors->get('topic')" class="mt-2" />
                 </div>
@@ -220,7 +222,7 @@ new #[Layout('layouts.app')] class extends Component
 
             <!-- Row 2: Work Done -->
             <div>
-                <x-input-label value="💼 Work Done Today *" class="text-base font-semibold" />
+                <x-input-label value="💼 Work Done Today *" class="text-base font-semibold text-[color:var(--page-text)]" />
                 <textarea 
                     wire:model="progress_description" 
                     rows="4" 
@@ -232,7 +234,7 @@ new #[Layout('layouts.app')] class extends Component
 
             <!-- Row 3: What I Learned -->
             <div>
-                <x-input-label value="💡 What I Learned *" class="text-base font-semibold" />
+                <x-input-label value="💡 What I Learned *" class="text-base font-semibold text-[color:var(--page-text)]" />
                 <textarea 
                     wire:model="what_learned" 
                     rows="4" 
@@ -245,12 +247,12 @@ new #[Layout('layouts.app')] class extends Component
             <!-- Row 4: Time and Hours -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <x-input-label value="⏰ Time Spent *" class="text-base font-semibold" />
+                    <x-input-label value="⏰ Time Spent *" class="text-base font-semibold text-[color:var(--page-text)]" />
                     <x-text-input wire:model="time_spent" class="w-full mt-2 h-11" placeholder="e.g., 9:00 AM - 5:00 PM" />
                     <x-input-error :messages="$errors->get('time_spent')" class="mt-2" />
                 </div>
                 <div>
-                    <x-input-label value="⏳ Hours Studied *" class="text-base font-semibold" />
+                    <x-input-label value="⏳ Hours Studied *" class="text-base font-semibold text-[color:var(--page-text)]" />
                     <x-text-input wire:model="hours_studied" type="number" step="0.5" min="0" max="24" class="w-full mt-2 h-11" placeholder="e.g., 6.5" />
                     <x-input-error :messages="$errors->get('hours_studied')" class="mt-2" />
                 </div>
@@ -258,7 +260,7 @@ new #[Layout('layouts.app')] class extends Component
 
             <!-- Row 5: Challenges (Optional) -->
             <div>
-                <x-input-label value="🚧 Challenges Faced (Optional)" class="text-base font-semibold" />
+                <x-input-label value="🚧 Challenges Faced (Optional)" class="text-base font-semibold text-[color:var(--page-text)]" />
                 <textarea 
                     wire:model="challenges_faced" 
                     rows="3" 
@@ -270,7 +272,7 @@ new #[Layout('layouts.app')] class extends Component
 
             <!-- Row 6: Skills Developed (Optional) -->
             <div>
-                <x-input-label value="🎯 Skills Developed (Optional)" class="text-base font-semibold" />
+                <x-input-label value="🎯 Skills Developed (Optional)" class="text-base font-semibold text-[color:var(--page-text)]" />
                 <textarea 
                     wire:model="skills_developed" 
                     rows="3" 
@@ -281,7 +283,7 @@ new #[Layout('layouts.app')] class extends Component
             </div>
 
             <!-- Submit Button -->
-            <div class="flex items-center gap-3 pt-4 border-t border-slate-200">
+            <div class="flex items-center gap-3 pt-4 border-t border-[color:var(--panel-border)]">
                 <button type="submit" class="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
@@ -289,9 +291,9 @@ new #[Layout('layouts.app')] class extends Component
                     {{ $editEntryId ? 'Update Entry' : 'Save Diary Entry' }}
                 </button>
                 @if($editEntryId)
-                    <button type="button" wire:click="cancelEdit" class="px-4 py-3 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50">Cancel Edit</button>
+                    <button type="button" wire:click="cancelEdit" class="px-4 py-3 border rounded-xl text-[color:var(--page-text)] hover:bg-[rgb(var(--accent-rgb)/0.08)]" style="border-color: var(--panel-border);">Cancel Edit</button>
                 @endif
-                <p class="text-sm text-slate-500 italic">* Required fields</p>
+                <p class="text-sm italic text-[color:var(--page-muted)]">* Required fields</p>
             </div>
         </form>
     </div>
@@ -299,10 +301,10 @@ new #[Layout('layouts.app')] class extends Component
     <!-- Diary Timeline -->
     <div>
         <div class="flex items-center gap-3 mb-6">
-            <svg class="w-7 h-7 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-7 h-7 text-[color:var(--page-text)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
-            <h2 class="text-2xl font-bold text-slate-900">My Learning Timeline</h2>
+            <h2 class="text-2xl font-bold text-[color:var(--page-text)]">My Learning Timeline</h2>
         </div>
 
         <div class="space-y-4">
@@ -416,14 +418,16 @@ new #[Layout('layouts.app')] class extends Component
                     @endif
                 </div>
             @empty
-                <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl border-2 border-dashed border-slate-300 p-16 text-center">
-                    <div class="w-24 h-24 mx-auto mb-6 bg-slate-200 rounded-full flex items-center justify-center">
-                        <svg class="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="rounded-3xl border-2 border-dashed p-16 text-center"
+                    style="background: linear-gradient(145deg, rgb(var(--accent-rgb) / 0.08), transparent 32%), var(--surface-soft); border-color: var(--panel-border);">
+                    <div class="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full"
+                        style="background: rgb(var(--accent-rgb) / 0.12);">
+                        <svg class="h-12 w-12 text-[color:var(--accent-600)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
                     </div>
-                    <h3 class="text-xl font-bold text-slate-900 mb-2">No Diary Entries Yet</h3>
-                    <p class="text-slate-600">Start documenting your learning journey by adding your first entry above!</p>
+                    <h3 class="mb-2 text-xl font-bold text-[color:var(--page-text)]">No Diary Entries Yet</h3>
+                    <p class="text-[color:var(--page-muted)]">Start documenting your learning journey by adding your first entry above!</p>
                 </div>
             @endforelse
         </div>
