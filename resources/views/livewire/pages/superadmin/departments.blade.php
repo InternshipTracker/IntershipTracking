@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Department;
+use App\Models\DepartmentCourse;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -9,19 +10,164 @@ new #[Layout('layouts.app')] class extends Component
     public string $name = '';
     public string $searchQuery = '';
     public ?int $editingId = null;
+    public array $facultyDrafts = [];
+
+    public function mount(): void
+    {
+        $this->resetFacultyDrafts();
+    }
+
+    private function defaultFacultyDraft(): array
+    {
+        return [
+            'id' => null,
+            'name' => '',
+            'code' => '',
+            'class_names_text' => '',
+        ];
+    }
+
+    private function resetFacultyDrafts(): void
+    {
+        $this->facultyDrafts = [$this->defaultFacultyDraft()];
+    }
+
+    public function addFacultyDraft(): void
+    {
+        $this->facultyDrafts[] = $this->defaultFacultyDraft();
+    }
+
+    public function removeFacultyDraft(int $index): void
+    {
+        unset($this->facultyDrafts[$index]);
+        $this->facultyDrafts = array_values($this->facultyDrafts);
+
+        if ($this->facultyDrafts === []) {
+            $this->resetFacultyDrafts();
+        }
+    }
+
+    private function normalizedFacultyDrafts(): array
+    {
+        return collect($this->facultyDrafts)
+            ->map(function (array $draft) {
+                $classNames = collect(preg_split('/[\r\n,]+/', (string) ($draft['class_names_text'] ?? '')) ?: [])
+                    ->map(fn ($className) => strtoupper(trim((string) $className)))
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                return [
+                    'id' => filled($draft['id'] ?? null) ? (int) $draft['id'] : null,
+                    'name' => trim((string) ($draft['name'] ?? '')),
+                    'code' => strtoupper(trim((string) ($draft['code'] ?? ''))),
+                    'class_names' => $classNames,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function validateFacultyDrafts(): array
+    {
+        $normalized = $this->normalizedFacultyDrafts();
+        $activeDrafts = [];
+
+        foreach ($normalized as $index => $draft) {
+            $hasAnyValue = $draft['name'] !== '' || $draft['code'] !== '' || $draft['class_names'] !== [];
+
+            if (! $hasAnyValue) {
+                continue;
+            }
+
+            if ($draft['name'] === '') {
+                $this->addError('facultyDrafts.'.$index.'.name', 'Faculty name is required.');
+            }
+
+            if ($draft['code'] === '') {
+                $this->addError('facultyDrafts.'.$index.'.code', 'Faculty code is required.');
+            }
+
+            if ($draft['class_names'] === []) {
+                $this->addError('facultyDrafts.'.$index.'.class_names_text', 'Add at least one class for this faculty.');
+            }
+
+            foreach ($draft['class_names'] as $className) {
+                if (! preg_match('/^[A-Z0-9]+$/', $className)) {
+                    $this->addError('facultyDrafts.'.$index.'.class_names_text', 'Use class names like FYBCS, SYBCS, TYBCS separated by commas.');
+                    break;
+                }
+            }
+
+            $activeDrafts[] = $draft;
+        }
+
+        $duplicateCodes = collect($activeDrafts)
+            ->pluck('code')
+            ->filter()
+            ->duplicates();
+
+        if ($duplicateCodes->isNotEmpty()) {
+            $this->addError('facultyDrafts', 'Faculty codes must be unique inside the department.');
+        }
+
+        return $activeDrafts;
+    }
+
+    private function syncDepartmentCourses(Department $department, array $facultyDrafts): void
+    {
+        $existingCourses = $department->courses()->get()->keyBy('id');
+        $keptIds = [];
+
+        foreach ($facultyDrafts as $draft) {
+            if ($draft['id'] && $existingCourses->has($draft['id'])) {
+                $course = $existingCourses[$draft['id']];
+                $course->update([
+                    'name' => $draft['name'],
+                    'code' => $draft['code'],
+                    'class_names' => $draft['class_names'],
+                ]);
+            } else {
+                $course = $department->courses()->create([
+                    'name' => $draft['name'],
+                    'code' => $draft['code'],
+                    'class_names' => $draft['class_names'],
+                ]);
+            }
+
+            $keptIds[] = $course->id;
+        }
+
+        $department->courses()
+            ->when($keptIds !== [], fn ($query) => $query->whereNotIn('id', $keptIds))
+            ->when($keptIds === [], fn ($query) => $query)
+            ->delete();
+    }
 
     public function save(): void
     {
+        $this->resetErrorBag();
+
         $rules = [
             'name' => ['required', 'string', 'max:255'],
         ];
+
+        $facultyDrafts = $this->validateFacultyDrafts();
+
+        if ($this->getErrorBag()->isNotEmpty()) {
+            return;
+        }
 
         if ($this->editingId) {
             $rules['name'][] = 'unique:departments,name,'.$this->editingId;
             $validated = $this->validate($rules);
 
-            Department::findOrFail($this->editingId)->update($validated);
+            $department = Department::with('courses')->findOrFail($this->editingId);
+            $department->update($validated);
+            $this->syncDepartmentCourses($department, $facultyDrafts);
             $this->reset(['name', 'editingId']);
+            $this->resetFacultyDrafts();
             session()->flash('status', 'Department updated successfully.');
 
             return;
@@ -30,21 +176,36 @@ new #[Layout('layouts.app')] class extends Component
         $rules['name'][] = 'unique:departments,name';
         $validated = $this->validate($rules);
 
-        Department::create($validated);
+        $department = Department::create($validated);
+        $this->syncDepartmentCourses($department, $facultyDrafts);
         $this->reset('name');
+        $this->resetFacultyDrafts();
         session()->flash('status', 'Department created successfully.');
     }
 
     public function edit(int $id): void
     {
-        $department = Department::findOrFail($id);
+        $department = Department::with('courses')->findOrFail($id);
         $this->editingId = $department->id;
         $this->name = $department->name;
+        $this->facultyDrafts = $department->courses->map(function (DepartmentCourse $course) {
+            return [
+                'id' => $course->id,
+                'name' => $course->name,
+                'code' => $course->normalizedCode(),
+                'class_names_text' => implode(', ', $course->normalizedClassNames()),
+            ];
+        })->values()->all();
+
+        if ($this->facultyDrafts === []) {
+            $this->resetFacultyDrafts();
+        }
     }
 
     public function cancelEdit(): void
     {
         $this->reset(['name', 'editingId']);
+        $this->resetFacultyDrafts();
     }
 
     public function delete(int $id): void
@@ -56,9 +217,11 @@ new #[Layout('layouts.app')] class extends Component
     public function departments()
     {
         return Department::query()
+            ->with('courses')
             ->withCount(['users as teacher_count' => function ($query) {
                 $query->where('role', 'teacher');
             }])
+            ->withCount('courses')
             ->when($this->searchQuery !== '', function ($query) {
                 $query->where('name', 'like', '%' . $this->searchQuery . '%');
             })
@@ -89,23 +252,25 @@ new #[Layout('layouts.app')] class extends Component
     </div>
 
     <!-- Search Bar -->
-    <div class="bg-white rounded-xl border-2 border-slate-200 shadow-md p-4">
+    <div class="rounded-xl border-2 p-4 shadow-md"
+        style="background: var(--panel-bg); border-color: var(--panel-border); box-shadow: var(--panel-shadow);">
         <div class="relative">
             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 text-[color:var(--page-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                 </svg>
             </div>
             <input 
                 type="text" 
                 wire:model.live.debounce.300ms="searchQuery"
-                class="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 text-slate-900 placeholder-slate-400"
+                class="w-full rounded-lg border-2 pl-12 pr-4 py-3 text-[color:var(--page-text)] placeholder:text-[color:var(--page-muted)] transition-all duration-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
+                style="background: var(--surface-soft); border-color: var(--panel-border);"
                 placeholder="Search departments by name..."
             />
             @if ($searchQuery !== '')
                 <button 
                     wire:click="$set('searchQuery', '')"
-                    class="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                    class="absolute inset-y-0 right-0 pr-4 flex items-center text-[color:var(--page-muted)] transition-colors hover:text-[color:var(--page-text)]"
                 >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -114,8 +279,8 @@ new #[Layout('layouts.app')] class extends Component
             @endif
         </div>
         @if ($searchQuery !== '')
-            <div class="mt-2 text-sm text-slate-600">
-                <span class="font-medium">{{ $this->departments()->count() }}</span> department(s) found for "<span class="font-semibold text-indigo-600">{{ $searchQuery }}</span>"
+            <div class="mt-2 text-sm text-[color:var(--page-muted)]">
+                <span class="font-medium text-[color:var(--page-text)]">{{ $this->departments()->count() }}</span> department(s) found for "<span class="font-semibold text-[color:var(--accent-600)]">{{ $searchQuery }}</span>"
             </div>
         @endif
     </div>
@@ -135,33 +300,98 @@ new #[Layout('layouts.app')] class extends Component
             </div>
         </div>
         
-        <form wire:submit="save" class="flex gap-3">
-            <div class="flex-1">
+        <form wire:submit="save" class="space-y-5">
+            <div>
                 <x-text-input 
                     wire:model="name" 
-                    class="w-full h-12 text-base" 
+                    class="w-full h-12 text-base text-[color:var(--page-text)] placeholder:text-[color:var(--page-muted)]" 
+                    style="background: var(--surface-soft); border-color: var(--panel-border);"
                     placeholder="Enter department name (e.g., Computer Science, Electronics)" 
                 />
                 <x-input-error :messages="$errors->get('name')" class="mt-2" />
             </div>
-            <button type="submit" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2">
-                @if ($editingId)
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    Update
-                @else
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                    </svg>
-                    Add Department
-                @endif
-            </button>
-            @if ($editingId)
-                <button type="button" wire:click="cancelEdit" class="px-6 py-3 rounded-lg border-2 font-semibold text-[color:var(--page-text)] transition-colors duration-200 hover:bg-[rgb(var(--accent-rgb)/0.08)]" style="background: var(--panel-bg); border-color: var(--panel-border);">
-                    Cancel
+
+            <div class="rounded-2xl border p-4 space-y-4"
+                style="background: linear-gradient(145deg, rgb(var(--accent-rgb) / 0.06), transparent 30%), var(--surface-soft); border-color: var(--panel-border);">
+                <div class="flex items-center justify-between gap-4">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--accent-600)]">Department Structure</p>
+                        <h3 class="mt-1 text-lg font-semibold text-[color:var(--page-text)]">Faculties / Courses</h3>
+                        <p class="mt-1 text-sm text-[color:var(--page-muted)]">Manage the course entries and class mapping for this department.</p>
+                    </div>
+                    <button type="button" wire:click="addFacultyDraft" class="rounded-lg px-4 py-2 text-sm font-semibold transition hover:opacity-90"
+                        style="border: 1px solid rgb(var(--accent-rgb) / 0.24); background: rgb(var(--accent-rgb) / 0.12); color: var(--accent-700);">
+                        Add Faculty
+                    </button>
+                </div>
+
+                <x-input-error :messages="$errors->get('facultyDrafts')" class="mt-2" />
+
+                <div class="space-y-4">
+                    @foreach ($facultyDrafts as $index => $draft)
+                        <div class="rounded-2xl border p-5 space-y-4"
+                            style="background: var(--panel-bg); border-color: var(--panel-border);">
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="flex items-center gap-3">
+                                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold"
+                                        style="background: rgb(var(--accent-rgb) / 0.12); color: var(--accent-700);">
+                                        {{ $loop->iteration }}
+                                    </span>
+                                    <div>
+                                        <p class="text-sm font-semibold text-[color:var(--page-text)]">Course Entry {{ $loop->iteration }}</p>
+                                        <p class="text-xs text-[color:var(--page-muted)]">Faculty information and class mapping</p>
+                                    </div>
+                                </div>
+                                <button type="button" wire:click="removeFacultyDraft({{ $index }})" class="rounded-lg px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50 hover:text-red-700">
+                                    Remove
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <div>
+                                    <label class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--page-muted)]">Faculty Name</label>
+                                    <x-text-input wire:model="facultyDrafts.{{ $index }}.name" class="w-full text-[color:var(--page-text)] placeholder:text-[color:var(--page-muted)]" style="background: var(--surface-soft); border-color: var(--panel-border);" placeholder="Enter faculty name" />
+                                    <x-input-error :messages="$errors->get('facultyDrafts.'.$index.'.name')" class="mt-2" />
+                                </div>
+
+                                <div>
+                                    <label class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--page-muted)]">Faculty Code</label>
+                                    <x-text-input wire:model="facultyDrafts.{{ $index }}.code" class="w-full text-[color:var(--page-text)] placeholder:text-[color:var(--page-muted)]" style="background: var(--surface-soft); border-color: var(--panel-border);" placeholder="Enter short code" />
+                                    <x-input-error :messages="$errors->get('facultyDrafts.'.$index.'.code')" class="mt-2" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--page-muted)]">Classes</label>
+                                <textarea wire:model="facultyDrafts.{{ $index }}.class_names_text" rows="3" class="w-full rounded-lg border px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-100" style="background: var(--surface-soft); border-color: var(--panel-border); color: var(--page-text);" placeholder="Enter classes"></textarea>
+                                <p class="mt-2 text-xs text-[color:var(--page-muted)]">Add one or more classes using commas or separate lines.</p>
+                                <x-input-error :messages="$errors->get('facultyDrafts.'.$index.'.class_names_text')" class="mt-2" />
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-3">
+                <button type="submit" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2">
+                    @if ($editingId)
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Update Department
+                    @else
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        Add Department
+                    @endif
                 </button>
-            @endif
+                @if ($editingId)
+                    <button type="button" wire:click="cancelEdit" class="px-6 py-3 rounded-lg border-2 font-semibold text-[color:var(--page-text)] transition-colors duration-200 hover:bg-[rgb(var(--accent-rgb)/0.08)]" style="background: var(--panel-bg); border-color: var(--panel-border);">
+                        Cancel
+                    </button>
+                @endif
+            </div>
         </form>
 
         @if (session('status'))
@@ -254,6 +484,31 @@ new #[Layout('layouts.app')] class extends Component
                                     <p class="text-lg font-bold {{ $colorScheme['text'] }}">{{ $department->teacher_count ?? 0 }}</p>
                                 </div>
                             </div>
+
+                            <div class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-white">
+                                <div class="w-10 h-10 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Faculties</p>
+                                    <p class="text-lg font-bold text-slate-800">{{ $department->courses_count ?? 0 }}</p>
+                                </div>
+                            </div>
+
+                            @if ($department->courses->isNotEmpty())
+                                <div class="space-y-2">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Configured Faculties</p>
+                                    <div class="flex flex-wrap gap-2">
+                                        @foreach ($department->courses as $course)
+                                            <span class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+                                                {{ $course->normalizedCode() }}
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
 
                             <!-- Created Date -->
                             <div class="flex items-center gap-2 text-sm text-slate-500">

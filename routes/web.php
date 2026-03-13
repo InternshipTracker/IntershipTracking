@@ -77,6 +77,7 @@ Route::middleware('auth')->group(function () {
         Volt::route('dashboard', 'pages.student.dashboard')->name('dashboard');
         Volt::route('internship-apply', 'pages.student.internship-apply')->name('internship.apply');
         Volt::route('diary', 'pages.student.diary')->name('diary');
+        Volt::route('history', 'pages.student.history')->name('history');
         Volt::route('announcements', 'pages.student.announcements')->name('announcements');
     });
 });

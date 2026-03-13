@@ -22,19 +22,21 @@ new #[Layout('layouts.app')] class extends Component
 
     public function mount(): void
     {
-        $internship = Internship::where('student_id', auth()->id())->latest()->first();
-        
-        if (!$internship || $internship->status !== 'approved') {
-            session()->flash('error', 'Daily diary is only accessible after internship approval.');
+        if (! $this->activeInternship()) {
+            session()->flash('error', 'Apply internship first to access Daily Diary.');
             $this->redirect(route('student.dashboard'), navigate: true);
         }
     }
 
-    public function approvedInternship(): ?Internship
+    public function activeInternship(): ?Internship
     {
         return Internship::query()
             ->where('student_id', auth()->id())
             ->where('status', 'approved')
+            ->where(function ($query) {
+                $query->whereNull('end_date')
+                    ->orWhereDate('end_date', '>=', now()->toDateString());
+            })
             ->latest()
             ->first();
     }
@@ -46,9 +48,9 @@ new #[Layout('layouts.app')] class extends Component
             return;
         }
 
-        $internship = $this->approvedInternship();
+        $internship = $this->activeInternship();
         if (! $internship) {
-            session()->flash('status', 'Daily diary is allowed only after internship approval.');
+            session()->flash('status', 'Apply internship first to access Daily Diary.');
             return;
         }
 
@@ -96,8 +98,11 @@ new #[Layout('layouts.app')] class extends Component
 
     public function deleteEntry(int $entryId): void
     {
+        $internship = $this->activeInternship();
+
         $entry = Diary::query()
             ->where('student_id', auth()->id())
+            ->where('internship_id', $internship?->id)
             ->findOrFail($entryId);
 
         $entry->delete();
@@ -107,8 +112,11 @@ new #[Layout('layouts.app')] class extends Component
 
     public function startEdit(int $entryId): void
     {
+        $internship = $this->activeInternship();
+
         $entry = Diary::query()
             ->where('student_id', auth()->id())
+            ->where('internship_id', $internship?->id)
             ->findOrFail($entryId);
 
         $this->editEntryId = $entry->id;
@@ -129,8 +137,11 @@ new #[Layout('layouts.app')] class extends Component
 
     public function updateEntry(): void
     {
+        $internship = $this->activeInternship();
+
         $entry = Diary::query()
             ->where('student_id', auth()->id())
+            ->where('internship_id', $internship?->id)
             ->findOrFail($this->editEntryId);
 
         $validated = $this->validate([
@@ -161,7 +172,10 @@ new #[Layout('layouts.app')] class extends Component
 
     public function entries()
     {
+        $internship = $this->activeInternship();
+
         return Diary::query()
+            ->when($internship, fn ($query) => $query->where('internship_id', $internship->id))
             ->where('student_id', auth()->id())
             ->latest('entry_date')
             ->latest()

@@ -1,11 +1,13 @@
 <?php
 
 use App\Models\Department;
+use App\Models\DepartmentCourse;
 use App\Models\User;
 use App\Livewire\Forms\LoginForm;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -13,6 +15,7 @@ use Livewire\Volt\Component;
 new #[Layout('layouts.blank')] class extends Component
 {
     public LoginForm $loginForm;
+    public string $authMode = 'login';
     
     // Registration fields
     public string $name = '';
@@ -22,13 +25,56 @@ new #[Layout('layouts.blank')] class extends Component
     public string $password = '';
     public string $password_confirmation = '';
     public ?int $department_id = null;
+    public ?int $department_course_id = null;
 
     // Added to track registration success
     public bool $isRegistered = false;
 
+    public function mount(): void
+    {
+        $this->authMode = request()->routeIs('register') ? 'register' : 'login';
+    }
+
     public function departments()
     {
-        return Department::query()->orderBy('name')->get();
+        return Department::query()->with('courses')->orderBy('name')->get();
+    }
+
+    public function updatedDepartmentId(): void
+    {
+        $this->department_course_id = null;
+        $this->class = '';
+    }
+
+    public function updatedDepartmentCourseId(): void
+    {
+        $this->class = '';
+    }
+
+    public function availableCourses()
+    {
+        if (! $this->department_id) {
+            return collect();
+        }
+
+        return DepartmentCourse::query()
+            ->where('department_id', $this->department_id)
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function availableClasses(): array
+    {
+        if (! $this->department_id || ! $this->department_course_id) {
+            return [];
+        }
+
+        $course = DepartmentCourse::query()
+            ->where('department_id', $this->department_id)
+            ->where('id', $this->department_course_id)
+            ->first();
+
+        return $course?->normalizedClassNames() ?? [];
     }
 
     public function login(): void
@@ -42,14 +88,22 @@ new #[Layout('layouts.blank')] class extends Component
 
     public function register(): void
     {
+        $this->authMode = 'register';
+
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255'],
             'username' => ['required', 'string', 'max:255', 'alpha_dash', 'unique:users,username'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'department_id' => ['required', 'exists:departments,id'],
-            'class' => ['required', 'in:FYBCS,SYBCS,TYBCS'],
+            'department_course_id' => [
+                'required',
+                Rule::exists('department_courses', 'id')->where(fn ($query) => $query->where('department_id', $this->department_id)),
+            ],
+            'class' => ['required', Rule::in($this->availableClasses())],
             'password' => ['required', 'string', 'confirmed', Rules\Password::defaults()],
         ]);
+
+        unset($validated['department_course_id']);
 
         $validated['password'] = Hash::make($validated['password']);
         $validated['role'] = 'student';
@@ -58,10 +112,20 @@ new #[Layout('layouts.blank')] class extends Component
 
         event(new Registered($user = User::create($validated)));
 
-        $this->reset(['name', 'username', 'email', 'class', 'password', 'password_confirmation', 'department_id']);
+        $this->reset(['name', 'username', 'email', 'class', 'password', 'password_confirmation', 'department_id', 'department_course_id']);
         
         // Show success message instead of redirecting
         $this->isRegistered = true;
+    }
+
+    public function showRegisterForm(): void
+    {
+        $this->authMode = 'register';
+    }
+
+    public function showLoginForm(): void
+    {
+        $this->authMode = 'login';
     }
 }; ?>
 
@@ -389,13 +453,14 @@ new #[Layout('layouts.blank')] class extends Component
                         
                         <a href="/" class="btn-submit" style="display: inline-block; text-decoration: none; width: auto; padding: 0.85rem 2rem;">Back to Home Page</a>
                         
-                        <button wire:click="$set('isRegistered', false)" style="background: none; border: none; color: var(--text-muted); font-weight: 500; font-size: 0.9rem; margin-top: 1.5rem; cursor: pointer;">
+                        <button wire:click="showLoginForm" style="background: none; border: none; color: var(--text-muted); font-weight: 500; font-size: 0.9rem; margin-top: 1.5rem; cursor: pointer;">
                             <span style="text-decoration: underline;">Back to Login</span>
                         </button>
                     </div>
                 </div>
             @else
-                <div id="login-section" class="fade-in" style="width:100%;">
+                @if ($authMode === 'login')
+                <div class="fade-in" style="width:100%;">
                     <div class="form-header">
                         <div class="logo-container">
                             <img src="{{ asset('images/clg logo.jpg') }}" alt="Sangamner College Logo">
@@ -432,11 +497,11 @@ new #[Layout('layouts.blank')] class extends Component
 
                     <div class="form-switch">
                         Don't have an account?
-                        <a id="show-register">Create one</a>
+                        <button type="button" wire:click="showRegisterForm" style="background:none;border:none;padding:0;color:var(--primary);font-weight:600;cursor:pointer;">Create one</button>
                     </div>
                 </div>
-
-                <div id="register-section" style="display:none; width:100%;" class="fade-in">
+                @else
+                <div class="fade-in" style="width:100%;">
                     <div class="form-header">
                         <div class="logo-container">
                             <img src="{{ asset('images/clg logo.jpg') }}" alt="Sangamner College Logo">
@@ -468,26 +533,45 @@ new #[Layout('layouts.blank')] class extends Component
                                 @error('email') <span class="error-message">{{ $message }}</span> @enderror
                             </div>
                             <div class="input-group">
-                                <label for="class">Class</label>
-                                <select wire:model="class" id="class" name="class">
-                                    <option value="">Select class</option>
-                                    <option value="FYBCS">FYBCS</option>
-                                    <option value="SYBCS">SYBCS</option>
-                                    <option value="TYBCS">TYBCS</option>
+                                <label for="department_id">Department</label>
+                                <select wire:model.live="department_id" id="department_id" name="department_id">
+                                    <option value="">Select department</option>
+                                    @foreach ($this->departments() as $department)
+                                        <option value="{{ $department->id }}">{{ $department->name }}</option>
+                                    @endforeach
                                 </select>
-                                @error('class') <span class="error-message">{{ $message }}</span> @enderror
+                                @error('department_id') <span class="error-message">{{ $message }}</span> @enderror
                             </div>
                         </div>
 
-                        <div class="input-group">
-                            <label for="department_id">Department</label>
-                            <select wire:model="department_id" id="department_id" name="department_id">
-                                <option value="">Select department</option>
-                                @foreach ($this->departments() as $department)
-                                    <option value="{{ $department->id }}">{{ $department->name }}</option>
-                                @endforeach
-                            </select>
-                            @error('department_id') <span class="error-message">{{ $message }}</span> @enderror
+                        <div class="grid-2">
+                            <div class="input-group">
+                                <label for="department_course_id">Faculty</label>
+                                <select wire:model.live="department_course_id" id="department_course_id" name="department_course_id" @disabled(!$department_id)>
+                                    <option value="">{{ $department_id ? 'Select faculty' : 'Select department first' }}</option>
+                                    @foreach ($this->availableCourses() as $course)
+                                        <option value="{{ $course->id }}">{{ $course->normalizedCode() }} - {{ $course->name }}</option>
+                                    @endforeach
+                                </select>
+                                @if ($department_id && $this->availableCourses()->isEmpty())
+                                    <span class="error-message">No faculty is configured for this department yet. Contact the super admin.</span>
+                                @endif
+                                @error('department_course_id') <span class="error-message">{{ $message }}</span> @enderror
+                            </div>
+
+                            <div class="input-group">
+                                <label for="class">Class</label>
+                                <select wire:model="class" id="class" name="class" @disabled(!$department_course_id)>
+                                    <option value="">{{ $department_course_id ? 'Select class' : 'Select faculty first' }}</option>
+                                    @foreach ($this->availableClasses() as $classOption)
+                                        <option value="{{ $classOption }}">{{ $classOption }}</option>
+                                    @endforeach
+                                </select>
+                                @if ($department_course_id && count($this->availableClasses()) === 0)
+                                    <span class="error-message">No classes are configured for this faculty yet. Contact the super admin.</span>
+                                @endif
+                                @error('class') <span class="error-message">{{ $message }}</span> @enderror
+                            </div>
                         </div>
 
                         <div class="grid-2">
@@ -511,54 +595,11 @@ new #[Layout('layouts.blank')] class extends Component
 
                     <div class="form-switch">
                         Already registered?
-                        <a id="show-login">Back to login</a>
+                        <button type="button" wire:click="showLoginForm" style="background:none;border:none;padding:0;color:var(--primary);font-weight:600;cursor:pointer;">Back to login</button>
                     </div>
                 </div>
+                @endif
             @endif
         </div>
     </div>
-
-    <script>
-            // Initialize form switcher logic
-            const initSwitcher = () => {
-                const loginSection = document.getElementById('login-section');
-                const registerSection = document.getElementById('register-section');
-                const showRegister = document.getElementById('show-register');
-                const showLogin = document.getElementById('show-login');
-                const defaultMode = "{{ request()->routeIs('register') ? 'register' : 'login' }}";
-
-                if (!loginSection || !registerSection) return;
-
-                const showLoginSection = () => {
-                    registerSection.style.display = 'none';
-                    loginSection.style.display = 'block';
-                    loginSection.classList.add('fade-in');
-                };
-
-                const showRegisterSection = () => {
-                    loginSection.style.display = 'none';
-                    registerSection.style.display = 'block';
-                    registerSection.classList.add('fade-in');
-                };
-
-                if (defaultMode === 'register') {
-                    showRegisterSection();
-                } else {
-                    showLoginSection();
-                }
-
-                showRegister?.addEventListener('click', showRegisterSection);
-                showLogin?.addEventListener('click', showLoginSection);
-            };
-
-            // Run on load and after Livewire updates
-            document.addEventListener('DOMContentLoaded', initSwitcher);
-            document.addEventListener('livewire:navigated', initSwitcher);
-
-            if (window.Livewire) {
-                Livewire.hook('morph.updated', () => {
-                    initSwitcher();
-                });
-            }
-    </script>
 </div>

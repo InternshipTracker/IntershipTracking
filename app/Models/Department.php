@@ -33,4 +33,9 @@ class Department extends Model
     {
         return $this->hasMany(Batch::class);
     }
+
+    public function courses(): HasMany
+    {
+        return $this->hasMany(DepartmentCourse::class)->orderBy('name');
+    }
 }

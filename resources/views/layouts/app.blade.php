@@ -77,11 +77,19 @@
             default => 'Student Dashboard',
         };
 
-        $hasApprovedInternship = $role === 'student'
+        $latestStudentInternship = $role === 'student'
             ? \App\Models\Internship::query()
                 ->where('student_id', $user?->id)
-                ->where('status', 'approved')
-                ->exists()
+                ->latest('id')
+                ->first()
+            : null;
+
+        $studentCanApplyInternship = $role === 'student'
+            ? (! $latestStudentInternship
+                || $latestStudentInternship->status === 'rejected'
+                || ($latestStudentInternship->status === 'approved'
+                    && $latestStudentInternship->end_date
+                    && \Illuminate\Support\Carbon::parse($latestStudentInternship->end_date)->isPast()))
             : false;
 
         $teacherAssignedClasses = $role === 'teacher'
@@ -138,8 +146,9 @@
             ],
             default => [
                 ['label' => 'Dashboard', 'route' => 'student.dashboard', 'icon' => '📊'],
-                ...($hasApprovedInternship ? [] : [['label' => 'Apply Internship', 'route' => 'student.internship.apply', 'icon' => '📝']]),
+                ...($studentCanApplyInternship ? [['label' => 'Apply Internship', 'route' => 'student.internship.apply', 'icon' => '📝']] : []),
                 ['label' => 'Daily Diary', 'route' => 'student.diary', 'icon' => '📘'],
+                ['label' => 'History', 'route' => 'student.history', 'icon' => '🗂️'],
                 ['label' => 'Announcements', 'route' => 'student.announcements', 'icon' => '📢'],
             ],
         };

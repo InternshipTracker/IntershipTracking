@@ -3,6 +3,7 @@
 use App\Models\Batch;
 use App\Models\Internship;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -24,7 +25,13 @@ new #[Layout('layouts.app')] class extends Component
     {
         $existingInternship = Internship::where('student_id', auth()->id())->latest()->first();
 
-        if ($existingInternship && $existingInternship->status !== 'rejected') {
+        $canApplyAgain = ! $existingInternship
+            || $existingInternship->status === 'rejected'
+            || ($existingInternship->status === 'approved'
+                && $existingInternship->end_date
+                && Carbon::parse($existingInternship->end_date)->isPast());
+
+        if (! $canApplyAgain) {
             session()->flash('info', 'You have already applied for an internship.');
             $this->redirect(route('student.dashboard'), navigate: true);
         }

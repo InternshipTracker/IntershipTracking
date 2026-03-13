@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\Department;
-use App\Models\TeacherClass;
+use App\Models\DepartmentCourse;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -14,12 +14,12 @@ new #[Layout('layouts.app')] class extends Component
     public ?int $editingId = null;
     public ?int $viewingProfileId = null;
     public ?int $selectedDepartmentId = null;
-    public string $activeClassLevel = '';
+    public ?int $activeCourseId = null;
+    public ?string $activeFilterClass = null;
     public string $name = '';
     public string $username = '';
     public string $email = '';
     public string $password = '';
-    public string $class_query = '';
     public array $selected_classes = [];
 
     private function normalizeClassName(string $value): string
@@ -27,105 +27,79 @@ new #[Layout('layouts.app')] class extends Component
         return strtoupper(trim($value));
     }
 
-    private function pushClassName(string $value): void
-    {
-        $normalized = $this->normalizeClassName($value);
-
-        if ($normalized === '') {
-            return;
-        }
-
-        if (! in_array($normalized, $this->selected_classes, true)) {
-            $this->selected_classes[] = $normalized;
-        }
-    }
-
     public function selectDepartment(int $departmentId): void
     {
         $this->selectedDepartmentId = $departmentId;
-        // Reset class level when department changes
-        $this->activeClassLevel = '';
+        $this->activeCourseId = null;
+        $this->activeFilterClass = null;
+        $this->selected_classes = [];
+        $this->resetErrorBag(['selectedDepartmentId', 'activeCourseId', 'selected_classes']);
     }
 
-    public function selectClassLevel(string $level): void
+    public function selectCourse(int $courseId): void
     {
-        $this->activeClassLevel = $this->activeClassLevel === $level ? '' : $level;
-    }
-
-    private function getClassLevelsForDepartment(?int $departmentId): array
-    {
-        if (!$departmentId) {
-            return [];
-        }
-
-        $department = Department::find($departmentId);
-        if (!$department) {
-            return [];
-        }
-
-        // Base levels for all departments
-        $levels = ['FY', 'SY', 'TY'];
-
-        // Add master's programs based on department
-        if (in_array($department->name, ['Computer Science', 'Information Technology'])) {
-            $levels[] = 'MCS';
-            $levels[] = 'MCA';
-        } elseif (in_array($department->name, ['Electronics & Communication', 'Electronics', 'Mechanical Engineering', 'Civil Engineering'])) {
-            $levels[] = 'ME';
-        }
-
-        return $levels;
-    }
-
-    private function allowedClassLevels(): array
-    {
-        return ['FY', 'SY', 'TY', 'MCS', 'MCA', 'ME'];
-    }
-
-    private function classLevel(string $className): string
-    {
-        $normalized = strtoupper(trim($className));
-        
-        // Check for 3-character levels first (MCS, MCA)
-        $threeChar = substr($normalized, 0, 3);
-        if (in_array($threeChar, ['MCS', 'MCA'], true)) {
-            return $threeChar;
-        }
-        
-        // Check for 2-character levels (FY, SY, TY, ME)
-        return substr($normalized, 0, 2);
-    }
-
-    public function addClass(): void
-    {
-        if ($this->activeClassLevel === '') {
-            $this->addError('activeClassLevel', 'Select a class level box first.');
+        if (! $this->selectedDepartmentId) {
+            $this->addError('selectedDepartmentId', 'Select a department first.');
             return;
         }
 
-        $this->pushClassName($this->class_query);
+        $course = $this->departmentCourses()->firstWhere('id', $courseId);
 
-        if (! empty($this->selected_classes)) {
-            $lastAdded = end($this->selected_classes);
-
-            if ($this->classLevel($lastAdded) !== $this->activeClassLevel) {
-                $this->removeClass($lastAdded);
-                $this->addError('selected_classes', 'Added class must match selected class level box.');
-            }
-        }
-
-        $this->class_query = '';
-    }
-
-    public function addSuggestedClass(string $className): void
-    {
-        if ($this->activeClassLevel === '') {
-            $this->addError('activeClassLevel', 'Select a class level box first.');
+        if (! $course) {
+            $this->addError('activeCourseId', 'Select a valid faculty for the chosen department.');
             return;
         }
 
-        $this->pushClassName($className);
-        $this->class_query = '';
+        $this->activeCourseId = $course->id;
+        $this->activeFilterClass = null;
+        $this->selected_classes = array_values(array_filter(
+            $this->selected_classes,
+            fn (string $className) => $course->supportsClass($className)
+        ));
+        $this->resetErrorBag(['activeCourseId', 'selected_classes']);
+    }
+
+    public function selectFilterClass(string $className): void
+    {
+        $course = $this->activeCourse();
+
+        if (! $course) {
+            $this->addError('activeCourseId', 'Select a faculty first.');
+            return;
+        }
+
+        $normalizedClass = $this->normalizeClassName($className);
+
+        if (! $course->supportsClass($normalizedClass)) {
+            return;
+        }
+
+        $this->activeFilterClass = $this->activeFilterClass === $normalizedClass ? null : $normalizedClass;
+    }
+
+    public function toggleSelectedClass(string $className): void
+    {
+        $course = $this->activeCourse();
+
+        if (! $course) {
+            $this->addError('activeCourseId', 'Select a faculty before assigning classes.');
+            return;
+        }
+
+        $normalizedClass = $this->normalizeClassName($className);
+
+        if (! $course->supportsClass($normalizedClass)) {
+            $this->addError('selected_classes', 'Selected class does not belong to the chosen faculty.');
+            return;
+        }
+
+        if (in_array($normalizedClass, $this->selected_classes, true)) {
+            $this->removeClass($normalizedClass);
+        } else {
+            $this->selected_classes[] = $normalizedClass;
+        }
+
+        $this->resetErrorBag('selected_classes');
     }
 
     public function removeClass(string $className): void
@@ -136,41 +110,85 @@ new #[Layout('layouts.app')] class extends Component
         ));
     }
 
+    private function activeCourse(): ?DepartmentCourse
+    {
+        if (! $this->activeCourseId) {
+            return null;
+        }
+
+        return $this->departmentCourses()->firstWhere('id', $this->activeCourseId)
+            ?? DepartmentCourse::query()->find($this->activeCourseId);
+    }
+
+    private function activeCourseClasses(): array
+    {
+        return $this->activeCourse()?->normalizedClassNames() ?? [];
+    }
+
+    private function inferCourseIdFromClass(?string $className, ?int $departmentId): ?int
+    {
+        if (! $departmentId) {
+            return null;
+        }
+
+        $courses = DepartmentCourse::query()
+            ->where('department_id', $departmentId)
+            ->orderBy('name')
+            ->get();
+
+        if (! filled($className)) {
+            return $courses->first()?->id;
+        }
+
+        $normalizedClass = $this->normalizeClassName((string) $className);
+
+        return $courses->first(fn (DepartmentCourse $course) => $course->supportsClass($normalizedClass))?->id
+            ?? $courses->first()?->id;
+    }
+
+    private function hasValidClassSelection(): bool
+    {
+        if (! $this->selectedDepartmentId) {
+            $this->addError('selectedDepartmentId', 'Select a department box first.');
+            return false;
+        }
+
+        $course = $this->activeCourse();
+
+        if (! $course) {
+            $this->addError('activeCourseId', 'Select a faculty box first.');
+            return false;
+        }
+
+        if (count($this->selected_classes) === 0) {
+            $this->addError('selected_classes', 'Please choose at least one class from the selected faculty.');
+            return false;
+        }
+
+        $hasInvalidClass = collect($this->selected_classes)
+            ->contains(fn (string $className) => ! $course->supportsClass($className));
+
+        if ($hasInvalidClass) {
+            $this->addError('selected_classes', 'All selected classes must belong to the selected faculty.');
+            return false;
+        }
+
+        return true;
+    }
+
     public function save(): void
     {
+        $this->resetErrorBag();
+
         $rules = [
             'name' => ['required', 'string', 'max:255'],
             'username' => ['required', 'string', 'regex:/^[A-Za-z0-9._-]+$/', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
         ];
 
-        if (filled($this->class_query)) {
-            $this->pushClassName($this->class_query);
-            $this->class_query = '';
-        }
-
         $departmentId = $this->selectedDepartmentId;
 
-        if (! $departmentId) {
-            $this->addError('selectedDepartmentId', 'Select a department box first.');
-            return;
-        }
-
-        if ($this->activeClassLevel === '' || ! in_array($this->activeClassLevel, $this->allowedClassLevels(), true)) {
-            $this->addError('activeClassLevel', 'Select a class level box first.');
-            return;
-        }
-
-        if (count($this->selected_classes) === 0) {
-            $this->addError('selected_classes', 'Please add at least one class.');
-            return;
-        }
-
-        $hasInvalidClass = collect($this->selected_classes)
-            ->contains(fn (string $className) => $this->classLevel($className) !== $this->activeClassLevel);
-
-        if ($hasInvalidClass) {
-            $this->addError('selected_classes', 'All classes must match selected class level box.');
+        if (! $this->hasValidClassSelection()) {
             return;
         }
 
@@ -200,7 +218,7 @@ new #[Layout('layouts.app')] class extends Component
             }
 
             $updatedName = $teacher->name;
-            $this->reset(['editingId', 'name', 'username', 'email', 'password', 'class_query', 'selected_classes']);
+            $this->reset(['editingId', 'name', 'username', 'email', 'password', 'selected_classes']);
             session()->flash('status', "Updated teacher: {$updatedName}");
 
             return;
@@ -229,7 +247,7 @@ new #[Layout('layouts.app')] class extends Component
         );
 
         $addedName = $teacher->name;
-        $this->reset(['name', 'username', 'email', 'password', 'class_query', 'selected_classes']);
+        $this->reset(['name', 'username', 'email', 'password', 'selected_classes']);
         session()->flash('status', "Added teacher: {$addedName}");
     }
 
@@ -243,17 +261,15 @@ new #[Layout('layouts.app')] class extends Component
         $this->email = $teacher->email;
         $this->selectedDepartmentId = $teacher->department_id;
         $this->selected_classes = $teacher->teacherClasses()->pluck('class_name')->map(fn (string $item) => strtoupper($item))->all();
-        $this->activeClassLevel = count($this->selected_classes) ? $this->classLevel((string) $this->selected_classes[0]) : '';
-        $this->class_query = '';
+        $this->activeCourseId = $this->inferCourseIdFromClass($this->selected_classes[0] ?? null, $teacher->department_id);
         $this->password = '';
         
-        // Close profile modal if open
         $this->viewingProfileId = null;
     }
 
     public function cancelEdit(): void
     {
-        $this->reset(['editingId', 'name', 'username', 'email', 'password', 'class_query', 'selected_classes']);
+        $this->reset(['editingId', 'name', 'username', 'email', 'password', 'selected_classes']);
     }
 
     public function delete(int $teacherId): void
@@ -276,45 +292,24 @@ new #[Layout('layouts.app')] class extends Component
 
     public function departments()
     {
-        return Department::query()->orderBy('name')->get();
+        return Department::query()->with('courses')->orderBy('name')->get();
     }
 
-    public function classSuggestions()
+    public function departmentCourses()
     {
-        $query = strtolower(trim($this->class_query));
+        if (! $this->selectedDepartmentId) {
+            return collect();
+        }
 
-        $studentClasses = User::query()
-            ->where('role', 'student')
-            ->whereNotNull('class')
-            ->when($this->selectedDepartmentId, fn ($q) => $q->where('department_id', $this->selectedDepartmentId))
-            ->distinct()
-            ->pluck('class');
-
-        $teacherClasses = TeacherClass::query()
-            ->when($this->selectedDepartmentId, function ($q) {
-                $q->whereHas('teacher', fn ($tq) => $tq->where('department_id', $this->selectedDepartmentId));
-            })
-            ->distinct()
-            ->pluck('class_name');
-
-        return $studentClasses
-            ->merge($teacherClasses)
-            ->map(fn ($item) => strtoupper(trim((string) $item)))
-            ->filter()
-            ->unique()
-            ->sort()
-            ->filter(fn (string $item) => $this->activeClassLevel === '' || str_starts_with($item, $this->activeClassLevel))
-            ->values()
-            ->filter(fn (string $item) => $query === '' || str_contains(strtolower($item), $query))
-            ->reject(fn (string $item) => in_array($item, $this->selected_classes, true))
-            ->take(8)
-            ->values();
+        return DepartmentCourse::query()
+            ->where('department_id', $this->selectedDepartmentId)
+            ->orderBy('name')
+            ->get();
     }
 
     public function teachers()
     {
-        // Only show teachers when department is selected
-        if (!$this->selectedDepartmentId) {
+        if (! $this->selectedDepartmentId || ! $this->activeCourseId || ! $this->activeFilterClass) {
             return collect([]);
         }
 
@@ -322,10 +317,8 @@ new #[Layout('layouts.app')] class extends Component
             ->with(['department', 'teacherClasses'])
             ->where('role', 'teacher')
             ->where('department_id', $this->selectedDepartmentId)
-            ->when($this->activeClassLevel !== '', function ($query) {
-                $query->whereHas('teacherClasses', function ($classQuery) {
-                    $classQuery->where('class_name', 'like', $this->activeClassLevel.'%');
-                });
+            ->whereHas('teacherClasses', function ($classQuery) {
+                $classQuery->where('class_name', $this->activeFilterClass);
             })
             ->orderBy('name')
             ->get();
@@ -340,21 +333,23 @@ new #[Layout('layouts.app')] class extends Component
         </div>
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-sm">
+    <div class="rounded-2xl border p-6 space-y-6 shadow-sm"
+        style="background: linear-gradient(145deg, rgb(var(--accent-rgb) / 0.08), transparent 28%), var(--panel-bg); border-color: var(--panel-border); box-shadow: var(--panel-shadow);">
         <div>
             <div class="flex items-center justify-between">
-                <h2 class="text-sm font-semibold text-slate-700 mb-3 uppercase tracking-wide">Step 1 · Department</h2>
-                <span class="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-500">Choose first</span>
+                <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-[color:var(--page-text)]">Step 1 · Department</h2>
+                <span class="rounded-full px-2 py-1 text-xs" style="background: var(--surface-soft); color: var(--page-muted);">Choose first</span>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 @foreach ($this->departments() as $department)
                     <button
                         type="button"
                         wire:click="selectDepartment({{ $department->id }})"
-                        class="group rounded-xl border-2 p-4 text-left transition-all duration-200 {{ $selectedDepartmentId === $department->id ? 'border-indigo-600 bg-gradient-to-br from-indigo-50 to-indigo-100 text-indigo-900 shadow-lg ring-2 ring-indigo-200' : 'border-slate-200 bg-white hover:bg-slate-50 hover:border-indigo-300 text-slate-700 hover:shadow-md' }}"
+                        class="group rounded-xl border-2 p-4 text-left transition-all duration-200"
+                        style="border-color: {{ $selectedDepartmentId === $department->id ? 'rgb(var(--accent-rgb) / 0.52)' : 'var(--panel-border)' }}; background: {{ $selectedDepartmentId === $department->id ? 'linear-gradient(145deg, rgb(var(--accent-rgb) / 0.18), rgb(var(--accent-rgb) / 0.06) 55%, var(--panel-bg))' : 'var(--panel-bg)' }}; color: var(--page-text); box-shadow: {{ $selectedDepartmentId === $department->id ? '0 16px 32px rgb(15 23 42 / 0.16)' : 'none' }};"
                     >
                         <div class="flex items-center gap-2">
-                            <div class="w-2 h-2 rounded-full {{ $selectedDepartmentId === $department->id ? 'bg-indigo-600' : 'bg-slate-300 group-hover:bg-indigo-400' }}"></div>
+                            <div class="h-2 w-2 rounded-full" style="background: {{ $selectedDepartmentId === $department->id ? 'var(--accent-600)' : 'rgb(var(--accent-rgb) / 0.28)' }};"></div>
                             <div class="font-semibold text-sm">{{ $department->name }}</div>
                         </div>
                     </button>
@@ -364,29 +359,67 @@ new #[Layout('layouts.app')] class extends Component
         </div>
 
         @if ($selectedDepartmentId)
-            <div class="border-t pt-6">
-                <h2 class="text-sm font-semibold text-slate-700 mb-3">Step 2: Select Class Level for {{ optional($this->departments()->firstWhere('id', $selectedDepartmentId))->name }}</h2>
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                    @foreach ($this->getClassLevelsForDepartment($selectedDepartmentId) as $level)
-                        <button
-                            type="button"
-                            wire:click="selectClassLevel('{{ $level }}')"
-                            class="rounded-lg border-2 p-4 text-center font-bold text-base transition-all duration-200 {{ $activeClassLevel === $level ? 'border-green-500 bg-gradient-to-br from-green-50 to-green-100 text-green-800 shadow-lg ring-2 ring-green-200' : 'border-slate-300 bg-white hover:bg-green-50 hover:border-green-400 text-slate-700' }}"
-                        >
-                            {{ $level }}
-                        </button>
-                    @endforeach
-                </div>
-                <x-input-error :messages="$errors->get('activeClassLevel')" class="mt-2" />
+            <div class="border-t pt-6" style="border-color: var(--panel-border);">
+                <h2 class="mb-3 text-sm font-semibold text-[color:var(--page-text)]">Step 2: Select Faculty for {{ optional($this->departments()->firstWhere('id', $selectedDepartmentId))->name }}</h2>
+
+                @if ($this->departmentCourses()->isNotEmpty())
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        @foreach ($this->departmentCourses() as $course)
+                            <button
+                                type="button"
+                                wire:click="selectCourse({{ $course->id }})"
+                                class="rounded-2xl border-2 p-5 text-left transition-all duration-200"
+                                style="border-color: {{ $activeCourseId === $course->id ? 'rgb(var(--accent-rgb) / 0.48)' : 'var(--panel-border)' }}; background: {{ $activeCourseId === $course->id ? 'linear-gradient(145deg, rgb(var(--accent-rgb) / 0.18), rgb(var(--accent-rgb) / 0.06) 48%, var(--panel-bg))' : 'linear-gradient(145deg, rgb(var(--accent-rgb) / 0.06), transparent 38%, var(--panel-bg))' }}; color: var(--page-text); box-shadow: {{ $activeCourseId === $course->id ? '0 18px 32px rgb(15 23 42 / 0.18)' : '0 8px 20px rgb(15 23 42 / 0.08)' }};"
+                            >
+                                <div class="flex items-center justify-between gap-3">
+                                    <div>
+                                        <p class="text-2xl font-bold tracking-tight text-[color:var(--page-text)]">{{ $course->normalizedCode() }}</p>
+                                        <p class="mt-2 text-sm text-[color:var(--page-muted)]">{{ $course->name }}</p>
+                                    </div>
+                                    <span class="inline-flex rounded-full px-3 py-1.5 text-[11px] font-semibold"
+                                        style="background: {{ $activeCourseId === $course->id ? 'rgb(var(--accent-rgb) / 0.14)' : 'var(--surface-soft)' }}; color: {{ $activeCourseId === $course->id ? 'var(--accent-700)' : 'var(--page-muted)' }}; border: 1px solid rgb(var(--accent-rgb) / 0.12);">
+                                        {{ count($course->normalizedClassNames()) }} classes
+                                    </span>
+                                </div>
+                            </button>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="rounded-xl border px-4 py-3 text-sm"
+                        style="background: rgb(245 158 11 / 0.12); border-color: rgb(245 158 11 / 0.24); color: #fcd34d;">
+                        No faculty is configured for this department yet. Add faculty and classes first from Department Management.
+                    </div>
+                @endif
+
+                <x-input-error :messages="$errors->get('activeCourseId')" class="mt-2" />
             </div>
         @else
-            <div class="border-t pt-6">
-                <div class="text-center py-8 text-slate-400">
+            <div class="border-t pt-6" style="border-color: var(--panel-border);">
+                <div class="py-8 text-center text-[color:var(--page-muted)]">
                     <svg class="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
-                    <p class="text-sm font-medium">Please select a department first to view class levels</p>
+                    <p class="text-sm font-medium">Please select a department first to view faculties</p>
                 </div>
+            </div>
+        @endif
+
+        @if ($activeCourseId)
+            <div class="border-t pt-6" style="border-color: var(--panel-border);">
+                <h2 class="mb-3 text-sm font-semibold text-[color:var(--page-text)]">Step 3: Tap a Class to Filter Teachers for {{ optional($this->activeCourse())->normalizedCode() }}</h2>
+                <div class="flex flex-wrap gap-3">
+                    @foreach ($this->activeCourseClasses() as $className)
+                        <button
+                            type="button"
+                            wire:click="selectFilterClass('{{ $className }}')"
+                            class="rounded-full border px-4 py-2 text-sm font-semibold transition-all duration-200"
+                            style="border-color: {{ $activeFilterClass === $className ? 'rgb(var(--accent-rgb) / 0.48)' : 'var(--panel-border)' }}; background: {{ $activeFilterClass === $className ? 'var(--accent-600)' : 'var(--surface-soft)' }}; color: {{ $activeFilterClass === $className ? '#ffffff' : 'var(--page-text)' }};"
+                        >
+                            {{ $className }}
+                        </button>
+                    @endforeach
+                </div>
+                <p class="mt-3 text-sm text-[color:var(--page-muted)]">Teachers will be shown only after you tap a class here.</p>
             </div>
         @endif
     </div>
@@ -432,15 +465,40 @@ new #[Layout('layouts.app')] class extends Component
                 </div>
             </div>
             <div class="col-span-2">
-                <label class="block text-sm font-semibold mb-1">Class</label>
-                <div class="flex gap-2">
-                    <input type="text" wire:model.live.debounce.250ms="class_query" class="w-full border rounded-lg px-4 py-2 focus:ring-indigo-500" placeholder="Type class from selected level and click Add">
-                    <button type="button" wire:click="addClass" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700">Add</button>
+                <label class="block text-sm font-semibold mb-1">Selected Faculty</label>
+                <div class="bg-slate-100 border rounded-lg px-4 py-2 text-slate-700 font-bold">
+                    {{ optional($this->activeCourse())->name ? optional($this->activeCourse())->normalizedCode().' - '.optional($this->activeCourse())->name : 'Select faculty from boxes above' }}
                 </div>
-                <!-- Suggestions and badges as before -->
+                <x-input-error :messages="$errors->get('activeCourseId')" class="mt-2" />
+            </div>
+            <div class="col-span-2">
+                <label class="block text-sm font-semibold mb-2">Assigned Classes</label>
+                @if ($activeCourseId)
+                    <div class="flex flex-wrap gap-2">
+                        @foreach ($this->activeCourseClasses() as $className)
+                            <button type="button" wire:click="toggleSelectedClass('{{ $className }}')" class="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold transition {{ in_array($className, $selected_classes, true) ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' : 'bg-slate-100 text-slate-700 hover:bg-slate-200' }}">
+                                <span>{{ $className }}</span>
+                            </button>
+                        @endforeach
+                    </div>
+                @else
+                    <p class="rounded-lg border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-500">Select a faculty above, then choose class assignments here.</p>
+                @endif
+
+                @if ($selected_classes)
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        @foreach ($selected_classes as $className)
+                            <button type="button" wire:click="toggleSelectedClass('{{ $className }}')" class="inline-flex items-center gap-2 rounded-full bg-indigo-100 px-3 py-1.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-200">
+                                <span>{{ $className }}</span>
+                                <span aria-hidden="true">×</span>
+                            </button>
+                        @endforeach
+                    </div>
+                @endif
+                <x-input-error :messages="$errors->get('selected_classes')" class="mt-2" />
             </div>
             <div class="col-span-2 flex items-center gap-4 mt-6">
-                <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-lg font-bold text-lg hover:bg-green-700 transition">ADD TEACHER</button>
+                <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-lg font-bold text-lg hover:bg-green-700 transition">{{ $editingId ? 'UPDATE TEACHER' : 'ADD TEACHER' }}</button>
                 @if ($editingId)
                     <button type="button" wire:click="cancelEdit" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-400">Cancel</button>
                 @endif
@@ -476,87 +534,101 @@ new #[Layout('layouts.app')] class extends Component
         </div>
     @endif
 
-    <!-- Teachers List by Department -->
+    <!-- Teachers List by Department/Class -->
     <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm mt-8">
         <div class="bg-gradient-to-r from-indigo-50 to-white border-b border-slate-200 p-4">
             <h2 class="text-lg font-semibold text-slate-800">
                 Teachers List
-                @if ($selectedDepartmentId)
+                @if ($selectedDepartmentId && $activeFilterClass)
                     <span class="text-sm font-normal text-slate-600">
-                    - {{ optional($this->departments()->firstWhere('id', $selectedDepartmentId))->name }}
-                </span>
+                    - {{ optional($this->departments()->firstWhere('id', $selectedDepartmentId))->name }} / {{ $activeFilterClass }}
+                    </span>
+                @elseif ($selectedDepartmentId)
+                    <span class="text-sm font-normal text-slate-500">
+                    - Select faculty and tap a class to view teachers
+                    </span>
             @else
-                <span class="text-sm font-normal text-slate-500">
-                    - Select a department to view teachers
-                </span>
-            @endif
-        </h2>
-    </div>
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-            <thead class="bg-slate-100 text-slate-700 border-b-2 border-slate-300">
-                <tr>
-                    <th class="px-4 py-3 text-left font-semibold">Teacher Name</th>
-                    <th class="px-4 py-3 text-left font-semibold">Username</th>
-                    <th class="px-4 py-3 text-left font-semibold">Email Address</th>
-                    <th class="px-4 py-3 text-left font-semibold">Department</th>
-                    <th class="px-4 py-3 text-left font-semibold">Classes</th>
-                    <th class="px-4 py-3 text-right font-semibold">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-200">
-                @foreach ($this->teachers() as $teacher)
-                    <tr class="hover:bg-slate-50 transition-colors">
-                        <td class="px-4 py-3 font-medium text-slate-900">{{ $teacher->name }}</td>
-                        <td class="px-4 py-3 text-slate-700">{{ $teacher->username }}</td>
-                        <td class="px-4 py-3 text-slate-600">{{ $teacher->email }}</td>
-                        <td class="px-4 py-3">
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-100 text-indigo-700 text-xs font-medium">
-                                <span class="font-bold">{{ $teacher->department?->name ?? '-' }}</span>
-                            </span>
-                        </td>
-                        <td class="px-4 py-3">
-                            @if ($teacher->teacherClasses->isNotEmpty())
-                                <div class="flex flex-wrap gap-1">
-                                    @foreach ($teacher->teacherClasses as $class)
-                                        <button type="button" wire:click="$set('activeClassLevel', '{{ $class->class_name }}')" class="inline-block px-2 py-0.5 rounded bg-green-100 text-green-700 text-xs font-medium font-bold hover:bg-green-200">
-                                            {{ $class->class_name }}
-                                        </button>
-                                    @endforeach
-                                </div>
-                            @else
-                                <span class="text-slate-400">-</span>
-                            @endif
-                        </td>
-                        <td class="px-4 py-3 text-right space-x-2">
-                            <button
-                                type="button"
-                                wire:click="viewProfile({{ $teacher->id }})"
-                                class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition"
-                            >
-                                View
-                            </button>
-                            <button
-                                type="button"
-                                wire:click="edit({{ $teacher->id }})"
-                                class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition"
-                            >
-                                Edit
-                            </button>
-                            <button
-                                type="button"
-                                x-data
-                                x-on:click.prevent="if (confirm('Delete teacher {{ $teacher->name }}?')) { $wire.delete({{ $teacher->id }}); }"
-                                class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 transition"
-                            >
-                                Delete
-                            </button>
-                        </td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
+                    <span class="text-sm font-normal text-slate-500">
+                    - Select a department first
+                    </span>
+                @endif
+            </h2>
+        </div>
+        @if ($selectedDepartmentId && $activeCourseId && $activeFilterClass)
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-slate-100 text-slate-700 border-b-2 border-slate-300">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-semibold">Teacher Name</th>
+                            <th class="px-4 py-3 text-left font-semibold">Username</th>
+                            <th class="px-4 py-3 text-left font-semibold">Email Address</th>
+                            <th class="px-4 py-3 text-left font-semibold">Department</th>
+                            <th class="px-4 py-3 text-left font-semibold">Classes</th>
+                            <th class="px-4 py-3 text-right font-semibold">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        @forelse ($this->teachers() as $teacher)
+                            <tr class="hover:bg-slate-50 transition-colors">
+                                <td class="px-4 py-3 font-medium text-slate-900">{{ $teacher->name }}</td>
+                                <td class="px-4 py-3 text-slate-700">{{ $teacher->username }}</td>
+                                <td class="px-4 py-3 text-slate-600">{{ $teacher->email }}</td>
+                                <td class="px-4 py-3">
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-100 text-indigo-700 text-xs font-medium">
+                                        <span class="font-bold">{{ $teacher->department?->name ?? '-' }}</span>
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    @if ($teacher->teacherClasses->isNotEmpty())
+                                        <div class="flex flex-wrap gap-1">
+                                            @foreach ($teacher->teacherClasses as $class)
+                                                <span class="inline-block px-2 py-0.5 rounded {{ $class->class_name === $activeFilterClass ? 'bg-indigo-100 text-indigo-700' : 'bg-green-100 text-green-700' }} text-xs font-medium font-bold">
+                                                    {{ $class->class_name }}
+                                                </span>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <span class="text-slate-400">-</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-right space-x-2">
+                                    <button
+                                        type="button"
+                                        wire:click="viewProfile({{ $teacher->id }})"
+                                        class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition"
+                                    >
+                                        View
+                                    </button>
+                                    <button
+                                        type="button"
+                                        wire:click="edit({{ $teacher->id }})"
+                                        class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition"
+                                    >
+                                        Edit
+                                    </button>
+                                    <button
+                                        type="button"
+                                        x-data
+                                        x-on:click.prevent="if (confirm('Delete teacher {{ $teacher->name }}?')) { $wire.delete({{ $teacher->id }}); }"
+                                        class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 transition"
+                                    >
+                                        Delete
+                                    </button>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="px-4 py-8 text-center text-slate-500">No teachers found for {{ $activeFilterClass }}.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        @else
+            <div class="px-4 py-10 text-center text-sm text-slate-500">
+                Select a department, then faculty, then tap a class to see teachers from that class only.
+            </div>
+        @endif
 </div>
 
 @if ($viewingProfileId)
@@ -566,7 +638,7 @@ new #[Layout('layouts.app')] class extends Component
             ? ltrim(preg_replace('#^(storage/|public/)#', '', $viewTeacher->profile_photo_path), '/')
             : null;
         $viewPhotoUrl = $viewPhotoPath && Storage::disk('public')->exists($viewPhotoPath)
-            ? Storage::disk('public')->url($viewPhotoPath)
+            ? Storage::url($viewPhotoPath)
             : null;
     @endphp
     @if ($viewTeacher)

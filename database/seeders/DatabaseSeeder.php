@@ -5,6 +5,7 @@ namespace Database\Seeders;
 
 use App\Models\Course;
 use App\Models\Department;
+use App\Models\DepartmentCourse;
 use App\Models\User;
 use App\Models\CoordinatorProfile;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -31,6 +32,21 @@ class DatabaseSeeder extends Seeder
 
         foreach ($departments as $name) {
             Department::firstOrCreate(['name' => $name]);
+        }
+
+        $computerScience = Department::where('name', 'Computer Science')->first();
+
+        if ($computerScience) {
+            DepartmentCourse::updateOrCreate(
+                [
+                    'department_id' => $computerScience->id,
+                    'code' => 'BCS',
+                ],
+                [
+                    'name' => 'Bachelor of Computer Science',
+                    'class_names' => ['FYBCS', 'SYBCS', 'TYBCS'],
+                ]
+            );
         }
 
         // Create courses
