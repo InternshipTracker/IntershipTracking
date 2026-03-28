@@ -44,6 +44,14 @@ class Batch extends Model
             ->where('teacher_id', $teacherId)
             ->active()
             ->whereNotNull('batch_number')
+            // Exclude batches where all internships have ended
+            ->whereNotIn('id', function ($query) {
+                $query->select('batch_id')
+                    ->from('batches')
+                    ->leftJoin('internships', 'batches.id', '=', 'internships.batch_id')
+                    ->groupBy('batches.id')
+                    ->havingRaw('MAX(internships.end_date) IS NULL OR MAX(internships.end_date) < CURDATE()');
+            })
             ->orderBy('batch_number')
             ->pluck('batch_number')
             ->map(fn ($number) => (int) $number)

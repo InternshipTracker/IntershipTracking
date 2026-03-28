@@ -247,20 +247,20 @@
         </aside>
 
         <div class="app-shell md:pl-72 min-h-screen">
-            <header class="h-16 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between">
-                <div class="flex items-center gap-3">
+            <header class="min-h-16 bg-white border-b border-slate-200 px-3 py-2 sm:px-4 md:px-6 flex flex-wrap items-center justify-between gap-2">
+                <div class="flex min-w-0 items-center gap-2 sm:gap-3">
                     <button id="sidebarToggle" type="button" class="inline-flex items-center justify-center h-10 w-10 rounded-lg" aria-label="Toggle sidebar" aria-expanded="true">
                         <svg id="sidebarToggleIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
                         </svg>
                     </button>
-                    <div>
-                        <p class="text-sm text-slate-500">{{ $user?->name }}</p>
-                        <p class="text-base font-semibold">{{ $dashboardTitle }}</p>
+                    <div class="min-w-0">
+                        <p class="truncate text-xs sm:text-sm text-slate-500">{{ $user?->name }}</p>
+                        <p class="truncate text-sm sm:text-base font-semibold">{{ $dashboardTitle }}</p>
                     </div>
                 </div>
 
-                <div class="flex items-center gap-4">
+                <div class="flex w-full items-center justify-end gap-2 sm:w-auto sm:gap-3 md:gap-4">
                     @include('partials.theme-switcher')
                     @if ($notificationRoute)
                         <a href="{{ $notificationRoute }}" wire:navigate class="relative inline-flex items-center justify-center h-10 w-10 rounded-full border border-slate-300 hover:bg-slate-50" title="Notifications">
@@ -281,12 +281,12 @@
                             </div>
                         @endif
                     </button>
-                    <div class="hidden sm:block">
-                        <p class="text-sm font-semibold">{{ $user?->name }}</p>
+                    <div class="hidden lg:block">
+                        <p class="max-w-[12rem] truncate text-sm font-semibold">{{ $user?->name }}</p>
                     </div>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
-                        <button type="button" onclick="document.getElementById('logoutModal').classList.remove('hidden')" class="px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium hover:bg-slate-50">Logout</button>
+                        <button type="button" onclick="document.getElementById('logoutModal').classList.remove('hidden')" class="px-3 py-2 rounded-lg border border-slate-300 text-xs sm:text-sm font-medium hover:bg-slate-50">Logout</button>
                     </form>
                 </div>
             </header>

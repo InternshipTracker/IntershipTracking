@@ -275,6 +275,40 @@ body {
     background-color: var(--page-bg);
 }
 
+html,
+body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+img,
+video,
+canvas,
+svg,
+iframe {
+    max-width: 100%;
+}
+
+main table {
+    width: 100%;
+}
+
+@media (max-width: 767px) {
+    main {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    main .overflow-x-auto {
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+
+    main table {
+        min-width: 640px;
+    }
+}
+
 body.theme-enabled {
     background-image: var(--page-bg-gradient);
     color: var(--page-text);

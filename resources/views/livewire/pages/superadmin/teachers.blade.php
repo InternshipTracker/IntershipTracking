@@ -429,7 +429,7 @@ new #[Layout('layouts.app')] class extends Component
             <svg class="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
             Add New Teacher
         </h2>
-        <form wire:submit.prevent="save" class="grid grid-cols-2 gap-6">
+        <form wire:submit.prevent="save" class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
                 <label class="block text-sm font-semibold mb-1">Name</label>
                 <div class="relative">

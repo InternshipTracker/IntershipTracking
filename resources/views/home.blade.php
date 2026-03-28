@@ -13,22 +13,22 @@
 
     {{-- HEADER --}}
     <header class="border-b border-slate-200 shadow-sm sticky top-0 z-50" style="background-color:#8c2230;">
-        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center text-white">
-            <div>
-                <h1 class="text-2xl font-bold tracking-tight">Internship Tracking System</h1>
-                <p class="text-xs font-medium opacity-90">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-col gap-3 md:flex-row md:justify-between md:items-center text-white">
+            <div class="min-w-0">
+                <h1 class="text-xl sm:text-2xl font-bold tracking-tight">Internship Tracking System</h1>
+                <p class="text-[11px] sm:text-xs font-medium opacity-90">
                     Sangamner College Nagarpalika Arts, D. J. Malpani Commerce & B. N. Sarda Science College
                 </p>
             </div>
             
-            <div class="flex items-center gap-5">
-                <a href="{{ route('student.auth') }}" class="text-sm font-semibold text-white hover:text-slate-100 transition">
+            <div class="flex w-full flex-wrap items-center gap-2 sm:gap-3 md:w-auto md:justify-end">
+                <a href="{{ route('student.auth') }}" class="inline-flex items-center rounded-full border border-white/30 px-3 py-1.5 text-xs sm:text-sm font-semibold text-white hover:text-slate-100 hover:bg-white/10 transition">
                     Student Login
                 </a>
-                <a href="{{ route('register') }}" class="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-full hover:bg-indigo-700 shadow-md transition">
+                <a href="{{ route('register') }}" class="px-4 sm:px-5 py-2 text-xs sm:text-sm font-semibold text-white bg-indigo-600 rounded-full hover:bg-indigo-700 shadow-md transition">
                     Register Now
                 </a>
-                <a href="{{ route('teacher.login') }}" class="font-semibold text-white hover:text-slate-100">
+                <a href="{{ route('teacher.login') }}" class="inline-flex items-center rounded-full border border-white/30 px-3 py-1.5 text-xs sm:text-sm font-semibold text-white hover:text-slate-100 hover:bg-white/10 transition">
                     Teacher Login
                 </a>
             </div>
@@ -36,8 +36,8 @@
     </header>
 
     {{-- MAIN CONTENT --}}
-    <main class="flex-1 flex items-center justify-center p-8">
-        <div class="max-w-7xl w-full grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+    <main class="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-8">
+        <div class="max-w-7xl w-full grid grid-cols-1 md:grid-cols-2 gap-7 sm:gap-10 md:gap-12 items-center">
             
             {{-- LEFT SIDE: IMAGE SLIDER --}}
             @php
@@ -49,7 +49,7 @@
             @endphp
 
             <div class="flex justify-center md:justify-start">
-                <div id="slider" class="w-full max-w-[480px] h-[320px] relative overflow-hidden rounded-2xl">
+                <div id="slider" class="w-full max-w-[480px] h-[220px] sm:h-[280px] md:h-[320px] relative overflow-hidden rounded-2xl">
 
                     @foreach($slides as $index => $slide)
                         <img 
@@ -65,12 +65,12 @@
             </div>
 
             {{-- RIGHT SIDE --}}
-            <div class="space-y-5 text-left">
-                <h2 class="text-5xl font-extrabold text-slate-900 leading-tight">
+            <div class="space-y-4 sm:space-y-5 text-center md:text-left">
+                <h2 class="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 leading-tight">
                     Welcome to <br>
                     <span class="text-indigo-600">Digital Internship Portal</span>
                 </h2>
-                <p class="text-lg text-slate-700 max-w-xl leading-relaxed">
+                <p class="text-base sm:text-lg text-slate-700 max-w-xl mx-auto md:mx-0 leading-relaxed">
                     Official college portal to track and manage students' internships seamlessly.
                 </p>
             </div>
@@ -88,7 +88,7 @@
         </div>
     </footer>
 
-    <div id="studentHelpBot" class="fixed bottom-[6%] right-5 z-50">
+    <div id="studentHelpBot" class="fixed bottom-4 right-4 sm:bottom-[6%] sm:right-5 z-50">
         <div id="chatbotPanel" class="hidden w-[320px] max-w-[calc(100vw-1.5rem)] rounded-[1.4rem] border border-blue-100 bg-white shadow-2xl overflow-hidden chatbot-panel-enter">
             <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3.5 text-white">
                 <div class="flex items-start justify-between gap-3">

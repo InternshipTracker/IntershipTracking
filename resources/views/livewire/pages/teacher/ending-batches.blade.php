@@ -55,6 +55,8 @@ new #[Layout('layouts.app')] class extends Component
                         <th class="p-4 text-left font-semibold text-slate-700">Company</th>
                         <th class="p-4 text-left font-semibold text-slate-700">Class</th>
                         <th class="p-4 text-center font-semibold text-slate-700">Students</th>
+                        <th class="p-4 text-left font-semibold text-slate-700">Start Date</th>
+                        <th class="p-4 text-left font-semibold text-slate-700">End Date</th>
                         <th class="p-4 text-left font-semibold text-slate-700">Ended Students</th>
                         <th class="p-4 text-right font-semibold text-slate-700">Action</th>
                     </tr>
@@ -74,6 +76,20 @@ new #[Layout('layouts.app')] class extends Component
                             </span>
                         </td>
                         <td class="p-4 align-top text-slate-600">
+                            @if ($batch->internships->isNotEmpty())
+                                {{ $batch->internships->min('start_date') ? \Carbon\Carbon::parse($batch->internships->min('start_date'))->format('d-m-Y') : 'N/A' }}
+                            @else
+                                N/A
+                            @endif
+                        </td>
+                        <td class="p-4 align-top text-slate-600">
+                            @if ($batch->internships->isNotEmpty())
+                                {{ $batch->internships->max('end_date') ? \Carbon\Carbon::parse($batch->internships->max('end_date'))->format('d-m-Y') : 'N/A' }}
+                            @else
+                                N/A
+                            @endif
+                        </td>
+                        <td class="p-4 align-top text-slate-600">
                             {{ $batch->internships->pluck('student.name')->filter()->implode(', ') ?: 'N/A' }}
                         </td>
                         <td class="p-4 align-top text-right">
@@ -84,7 +100,7 @@ new #[Layout('layouts.app')] class extends Component
                     </tr>
             @empty
                     <tr>
-                        <td colspan="6" class="p-8 text-center text-slate-500">No ending batches yet.</td>
+                        <td colspan="8" class="p-8 text-center text-slate-500">No ending batches yet.</td>
                     </tr>
             @endforelse
                 </tbody>

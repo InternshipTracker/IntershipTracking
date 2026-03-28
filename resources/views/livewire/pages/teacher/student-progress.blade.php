@@ -128,7 +128,7 @@ new #[Layout('layouts.app')] class extends Component
             </div>
             @php($stats = $this->progressStats())
             @if ($stats)
-                <div class="min-w-[220px] rounded-xl border p-4 text-right"
+                <div class="w-full md:w-auto md:min-w-[220px] rounded-xl border p-4 text-right"
                     style="background: linear-gradient(135deg, rgb(var(--accent-rgb) / 0.16), rgb(var(--accent-rgb) / 0.06)); border-color: rgb(var(--accent-rgb) / 0.24);">
                     <div class="text-4xl font-extrabold text-[color:var(--accent-600)]">{{ $stats['progress_percentage'] }}%</div>
                     <p class="mt-1 text-sm text-[color:var(--page-muted)]">Overall Progress</p>
@@ -259,7 +259,7 @@ new #[Layout('layouts.app')] class extends Component
                             </div>
 
                             <!-- Challenges & Skills Row -->
-                            <div class="grid grid-cols-2 gap-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 @if ($entry->challenges_faced)
                                     <div>
                                         <div class="flex items-center gap-2 mb-2">

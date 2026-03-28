@@ -105,12 +105,20 @@ new #[Layout('layouts.app')] class extends Component
             return;
         }
 
-        // If creating new batch, only active batches should reserve the number.
+        // If creating new batch, only batches with active internships should reserve the number.
+        // Batches with all ended internships can have their numbers reused.
         if (!$existingBatch) {
             $numberTaken = Batch::query()
                 ->where('teacher_id', auth()->id())
                 ->where('status', 'Active')
                 ->where('batch_number', $batchNumber)
+                ->whereExists(function ($query) {
+                    // Only block if this batch has at least one active internship
+                    $query->select(DB::raw(1))
+                        ->from('internships')
+                        ->whereColumn('internships.batch_id', 'batches.id')
+                        ->whereDate('end_date', '>=', now()->toDateString());
+                })
                 ->exists();
 
             if ($numberTaken) {
