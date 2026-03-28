@@ -22,9 +22,13 @@ RUN npm install
 # Build Vite assets
 RUN npm run build
 
+RUN php artisan config:clear
+RUN php artisan route:clear
+RUN php artisan view:clear
+
 RUN chmod -R 777 storage bootstrap/cache
 
-RUN php artisan config:clear
 RUN php artisan migrate --force
+RUN php artisan db:seed --force
 
 CMD php artisan serve --host=0.0.0.0 --port=10000
