@@ -13,6 +13,15 @@ RUN curl -sS https://getcomposer.org/installer | php \
 
 RUN composer install --no-dev --optimize-autoloader
 
+# Install Node
+RUN apt-get update && apt-get install -y nodejs npm
+
+# Install frontend dependencies
+RUN npm install
+
+# Build Vite assets
+RUN npm run build
+
 RUN chmod -R 777 storage bootstrap/cache
 
 RUN php artisan config:clear
