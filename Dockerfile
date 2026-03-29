@@ -32,4 +32,9 @@ RUN chmod -R 777 storage bootstrap/cache
 RUN php artisan migrate --force
 RUN php artisan db:seed --force
 
+RUN php artisan config:clear
+RUN php artisan cache:clear || true
+RUN php artisan view:clear
+RUN php artisan route:clear
+
 CMD php artisan serve --host=0.0.0.0 --port=10000
