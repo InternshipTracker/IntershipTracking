@@ -13,20 +13,21 @@ RUN curl -sS https://getcomposer.org/installer | php \
 
 RUN composer install --no-dev --optimize-autoloader
 
+# 🔥 DATABASE FIX
 RUN mkdir -p database
 RUN touch database/database.sqlite
 RUN chmod -R 777 database
 
-RUN php artisan migrate --force
-
+# 🔥 VITE BUILD
 RUN npm install
 RUN npm run build
 
-RUN chmod -R 777 storage bootstrap/cache
-
+# 🔥 CACHE CLEAR
 RUN php artisan config:clear
-RUN php artisan config:cache
 RUN php artisan view:clear
 RUN php artisan route:clear
+
+# 🔥 MIGRATION
+RUN php artisan migrate --force
 
 CMD php artisan serve --host=0.0.0.0 --port=10000
