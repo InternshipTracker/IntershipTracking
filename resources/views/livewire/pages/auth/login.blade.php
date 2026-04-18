@@ -44,7 +44,10 @@ new #[Layout('layouts.guest')] class extends Component
         <!-- Password -->
         <div>
             <x-input-label for="password" :value="__('Password')" />
-            <x-text-input wire:model="form.password" id="password" class="block mt-1 w-full" type="password" name="password" required autocomplete="current-password" />
+            <div class="relative mt-1">
+                <x-text-input wire:model="form.password" id="password" class="block w-full pe-16" type="password" name="password" required autocomplete="current-password" />
+                <button type="button" class="absolute inset-y-0 right-3 text-sm font-medium text-slate-500 hover:text-slate-700" onclick="const i=this.parentElement.querySelector('input[type=password],input[type=text]'); const s=i.type==='password'; i.type=s?'text':'password'; this.textContent=s?'Hide':'Show';">Show</button>
+            </div>
             <x-input-error :messages="$errors->get('form.password')" class="mt-2" />
         </div>
 

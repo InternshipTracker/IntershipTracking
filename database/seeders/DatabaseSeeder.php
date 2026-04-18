@@ -67,13 +67,13 @@ class DatabaseSeeder extends Seeder
             Course::firstOrCreate(['code' => $course['code']], $course);
         }
 
-        // Create a Super Admin user
-        User::firstOrCreate(
+        // Ensure Super Admin credentials stay consistent across environments
+        User::updateOrCreate(
             ['email' => 'superadmin@gmail.com'],
             [
                 'name'      => 'Super Admin',
-                'password'  => Hash::make('Admin1234'),
-                'role'      => 'super_admin',
+                'password'  => Hash::make('Admin123'),
+                'role'      => 'superadmin',
                 'phone'     => '9999999999',
                 'is_active' => true,
             ]

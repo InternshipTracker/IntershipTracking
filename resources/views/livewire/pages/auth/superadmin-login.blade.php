@@ -96,6 +96,7 @@ new #[Layout('layouts.blank')] class extends Component
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V7.875a4.125 4.125 0 10-8.25 0V10.5m-.75 0h9a1.5 1.5 0 011.5 1.5v6A1.5 1.5 0 0116.5 19.5h-9A1.5 1.5 0 016 18v-6a1.5 1.5 0 011.5-1.5z" />
                             </svg>
                             <input wire:model="password" id="password" type="password" name="password" required autocomplete="current-password" placeholder="Enter your password" class="w-full border-0 bg-transparent p-0 text-[15px] text-[#4d3d32] placeholder:text-[#a69082] focus:outline-none focus:ring-0">
+                            <button type="button" class="shrink-0 text-xs font-semibold text-[#8a6f5f] hover:text-[#6f5d50]" onclick="const i=this.parentElement.querySelector('input[type=password],input[type=text]'); const s=i.type==='password'; i.type=s?'text':'password'; this.textContent=s?'Hide':'Show';">Show</button>
                         </div>
                         <x-input-error :messages="$errors->get('password')" class="mt-2 text-sm text-rose-600" />
                     </div>

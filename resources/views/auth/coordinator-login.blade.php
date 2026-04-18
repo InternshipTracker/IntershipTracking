@@ -40,9 +40,12 @@
 
                         <div class="mb-3">
                             <label for="password" class="form-label text-white-50" style="font-size: 0.8125rem; font-weight: 500;">Password</label>
-                            <input type="password" class="form-control" id="password" name="password" required
-                                style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); color: #fff; border-radius: 10px; padding: 0.65rem 0.875rem; font-size: 0.875rem;"
-                                placeholder="••••••••">
+                            <div class="position-relative">
+                                <input type="password" class="form-control" id="password" name="password" required
+                                    style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); color: #fff; border-radius: 10px; padding: 0.65rem 4.2rem 0.65rem 0.875rem; font-size: 0.875rem;"
+                                    placeholder="••••••••">
+                                <button type="button" class="btn btn-link position-absolute top-50 end-0 translate-middle-y text-decoration-none" style="font-size: 0.8rem; color: #a7f3d0;" onclick="const i=this.parentElement.querySelector('input[type=password],input[type=text]'); const s=i.type==='password'; i.type=s?'text':'password'; this.textContent=s?'Hide':'Show';">Show</button>
+                            </div>
                         </div>
 
                         <button type="submit" class="btn w-100 text-white fw-semibold"

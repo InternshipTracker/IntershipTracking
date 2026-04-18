@@ -6,15 +6,19 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::table('batches', function (Blueprint $table) {
-            $table->string('status')->default('Active')->after('batch_number');
-        });
+        if (! Schema::hasColumn('batches', 'status')) {
+            Schema::table('batches', function (Blueprint $table) {
+                $table->string('status')->default('Active');
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('batches', function (Blueprint $table) {
-            $table->dropColumn('status');
-        });
+        if (Schema::hasColumn('batches', 'status')) {
+            Schema::table('batches', function (Blueprint $table) {
+                $table->dropColumn('status');
+            });
+        }
     }
 };

@@ -480,7 +480,10 @@ new #[Layout('layouts.blank')] class extends Component
 
                         <div class="input-group">
                             <label for="password">Password</label>
-                            <input wire:model.defer="loginForm.password" id="password" name="password" type="password" placeholder="••••••••" autocomplete="current-password">
+                            <div style="position:relative;">
+                                <input wire:model.defer="loginForm.password" id="password" name="password" type="password" placeholder="••••••••" autocomplete="current-password" style="padding-right:4.5rem;">
+                                <button type="button" style="position:absolute; right:0.8rem; top:50%; transform:translateY(-50%); border:none; background:none; color:var(--primary); font-weight:600; font-size:0.8rem; cursor:pointer;" onclick="const i=this.parentElement.querySelector('input[type=password],input[type=text]'); const s=i.type==='password'; i.type=s?'text':'password'; this.textContent=s?'Hide':'Show';">Show</button>
+                            </div>
                             @error('loginForm.password') <span class="error-message">{{ $message }}</span> @enderror
                         </div>
 
