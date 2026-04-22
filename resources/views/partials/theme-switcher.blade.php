@@ -1,5 +1,6 @@
 @php
     $floating = $floating ?? false;
+    $compact = $compact ?? false;
     $palette = [
         ['key' => 'cyan', 'label' => 'Cyan', 'swatch' => '#1497c7'],
         ['key' => 'sky', 'label' => 'Sky', 'swatch' => '#1698db'],
@@ -20,10 +21,10 @@
     ];
 @endphp
 
-<div class="theme-switcher {{ $floating ? 'theme-switcher-floating' : '' }}" data-theme-switcher>
+<div class="theme-switcher {{ $floating ? 'theme-switcher-floating' : '' }} {{ $compact ? 'theme-switcher-compact' : '' }}" data-theme-switcher>
     <button
         type="button"
-        class="theme-switcher-trigger"
+        class="theme-switcher-trigger {{ $compact ? 'theme-switcher-trigger-compact' : '' }}"
         data-theme-panel-toggle
         aria-expanded="false"
         aria-label="Open appearance settings"
@@ -32,6 +33,9 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317a1.724 1.724 0 013.35 0 1.724 1.724 0 002.573 1.066 1.724 1.724 0 012.9 1.675 1.724 1.724 0 001.066 2.573 1.724 1.724 0 010 3.35 1.724 1.724 0 00-1.066 2.573 1.724 1.724 0 01-2.9 1.675 1.724 1.724 0 00-2.573 1.066 1.724 1.724 0 01-3.35 0 1.724 1.724 0 00-2.573-1.066 1.724 1.724 0 01-2.9-1.675 1.724 1.724 0 00-1.066-2.573 1.724 1.724 0 010-3.35 1.724 1.724 0 001.066-2.573 1.724 1.724 0 012.9-1.675 1.724 1.724 0 002.573-1.066z" />
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
+        @if ($compact)
+            <span class="theme-switcher-trigger-label">Appearance</span>
+        @endif
     </button>
 
     <div class="theme-switcher-panel hidden" data-theme-panel>

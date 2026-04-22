@@ -261,7 +261,9 @@
                 </div>
 
                 <div class="flex w-full items-center justify-end gap-2 sm:w-auto sm:gap-3 md:gap-4">
-                    @include('partials.theme-switcher')
+                    <div class="hidden sm:block">
+                        @include('partials.theme-switcher')
+                    </div>
                     @if ($notificationRoute)
                         <a href="{{ $notificationRoute }}" wire:navigate class="relative inline-flex items-center justify-center h-10 w-10 rounded-full border border-slate-300 hover:bg-slate-50" title="Notifications">
                             <svg class="h-5 w-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -303,6 +305,18 @@
                         @endif
                     </a>
                 @endforeach
+            </div>
+
+            <div class="md:hidden border-b border-slate-200 bg-white px-3 py-3">
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Appearance</p>
+                            <p class="mt-1 text-sm text-slate-600">Choose the look for this dashboard.</p>
+                        </div>
+                        @include('partials.theme-switcher', ['compact' => true])
+                    </div>
+                </div>
             </div>
 
             <main class="p-4 md:p-6">
