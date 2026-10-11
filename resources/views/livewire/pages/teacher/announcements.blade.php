@@ -22,7 +22,7 @@ new #[Layout('layouts.app')] class extends Component
             $student = User::query()
                 ->where('id', $studentId)
                 ->where('role', 'student')
-                ->where('department_id', auth()->user()->department_id)
+                ->whereIn('department_id', auth()->user()->assignedDepartmentIds())
                 ->where('is_approved', true)
                 ->first();
 
@@ -61,7 +61,7 @@ new #[Layout('layouts.app')] class extends Component
         $student = User::query()
             ->where('id', $studentId)
             ->where('role', 'student')
-            ->where('department_id', auth()->user()->department_id)
+            ->whereIn('department_id', auth()->user()->assignedDepartmentIds())
             ->where('is_approved', true)
             ->firstOrFail();
 

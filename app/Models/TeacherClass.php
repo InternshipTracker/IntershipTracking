@@ -9,6 +9,8 @@ class TeacherClass extends Model
 {
     protected $fillable = [
         'teacher_id',
+        'department_id',
+        'department_course_id',
         'class_name',
     ];
 

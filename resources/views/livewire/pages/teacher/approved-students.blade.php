@@ -12,11 +12,12 @@ new #[Layout('layouts.app')] class extends Component
         // Show all approved students in teacher's assigned classes (for this department),
         // and display which teacher approved them
         $assignedClasses = auth()->user()->teacherClasses()->pluck('class_name')->map(fn($c) => strtoupper($c))->all();
-        return \App\Models\User::query()
+        return User::query()
             ->with(['department', 'approvedBy'])
             ->where('role', 'student')
-            ->where('department_id', auth()->user()->department_id)
+            ->whereIn('department_id', auth()->user()->assignedDepartmentIds())
             ->where('approval_status', 'approved')
+            ->where('approved_by', auth()->id())
             ->whereIn('class', $assignedClasses)
             ->latest()
             ->get();
@@ -47,7 +48,9 @@ new #[Layout('layouts.app')] class extends Component
                             <span class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-700 font-bold text-lg shadow-sm">
                                 {{ strtoupper(substr($student->name,0,1)) }}
                             </span>
-                            <span class="font-medium">{{ $student->name }}</span>
+                            <a href="{{ route('teacher.student.profile', $student) }}" wire:navigate class="font-medium text-indigo-700 hover:text-indigo-900 hover:underline">
+                                {{ $student->name }}
+                            </a>
                         </td>
                         <td class="p-4">{{ $student->class }}</td>
                         <td class="p-4">{{ $student->department?->name }}</td>

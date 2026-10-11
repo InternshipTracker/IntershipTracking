@@ -29,7 +29,7 @@ new #[Layout('layouts.app')] class extends Component
         return User::query()
             ->with('department')
             ->where('role', 'student')
-            ->where('department_id', auth()->user()->department_id)
+            ->whereIn('department_id', auth()->user()->assignedDepartmentIds())
             ->whereIn('class', $classes)
             ->where('approval_status', 'pending')
             ->latest()
@@ -43,7 +43,7 @@ new #[Layout('layouts.app')] class extends Component
         $student = User::query()
             ->where('id', $studentId)
             ->where('role', 'student')
-            ->where('department_id', auth()->user()->department_id)
+            ->whereIn('department_id', auth()->user()->assignedDepartmentIds())
             ->whereIn('class', $classes)
             ->where('approval_status', 'pending')
             ->firstOrFail();
@@ -71,7 +71,7 @@ new #[Layout('layouts.app')] class extends Component
         $student = User::query()
             ->where('id', $studentId)
             ->where('role', 'student')
-            ->where('department_id', auth()->user()->department_id)
+            ->whereIn('department_id', auth()->user()->assignedDepartmentIds())
             ->whereIn('class', $classes)
             ->where('approval_status', 'pending')
             ->firstOrFail();

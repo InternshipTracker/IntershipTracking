@@ -29,6 +29,7 @@ class User extends Authenticatable
         'username',
         'email',
         'password',
+        'phone',
         'role',
         'department_id',
         'class',
@@ -95,6 +96,22 @@ class User extends Authenticatable
     public function assignedInternships(): HasMany
     {
         return $this->hasMany(Internship::class, 'teacher_id');
+    }
+
+    public function assignedDepartmentIds(): array
+    {
+        $ids = $this->teacherClasses()
+            ->whereNotNull('department_id')
+            ->pluck('department_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        return array_values(array_unique(array_merge(
+            $ids,
+            $this->department_id ? [(int) $this->department_id] : []
+        )));
     }
 
     public function sentAnnouncements(): HasMany

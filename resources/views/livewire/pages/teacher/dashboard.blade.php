@@ -35,15 +35,16 @@ new #[Layout('layouts.app')] class extends Component
         return Internship::query()
             ->where('teacher_id', auth()->id())
             ->where('status', 'approved')
+            ->whereDate('end_date', '>=', now()->toDateString())
             ->count();
     }
 
-    public function activeInternships(): int
+    public function exApprovedInternships(): int
     {
         return Internship::query()
             ->where('teacher_id', auth()->id())
             ->where('status', 'approved')
-            ->whereDate('end_date', '>=', now()->toDateString())
+            ->whereDate('end_date', '<', now()->toDateString())
             ->count();
     }
 
@@ -114,7 +115,7 @@ new #[Layout('layouts.app')] class extends Component
         return User::query()
             ->with('department', 'approvedBy')
             ->where('role', 'student')
-            ->where('department_id', auth()->user()->department_id)
+            ->whereIn('department_id', auth()->user()->assignedDepartmentIds())
             ->where('approval_status', 'approved')
             ->where('approved_by', auth()->id())
             ->latest()
@@ -132,7 +133,7 @@ new #[Layout('layouts.app')] class extends Component
 
         return User::query()
             ->where('role', 'student')
-            ->where('department_id', auth()->user()->department_id)
+            ->whereIn('department_id', auth()->user()->assignedDepartmentIds())
             ->whereIn('class', $classes)
             ->where('approval_status', 'pending')
             ->count();
@@ -189,20 +190,20 @@ new #[Layout('layouts.app')] class extends Component
                 <div>
                     <p class="text-sm font-semibold text-[color:var(--page-muted)]">Approved Internships</p>
                     <p class="mt-2 text-3xl font-bold text-[color:var(--page-text)]">{{ $this->approvedInternships() }}</p>
-                    <p class="mt-2 text-xs text-rose-700">Total approved by you</p>
+                    <p class="mt-2 text-xs text-rose-700">Currently active</p>
                 </div>
                 <div class="w-11 h-11 rounded-full bg-rose-500 text-white flex items-center justify-center text-lg">✅</div>
             </div>
         </div>
 
-        <div class="rounded-2xl border p-5 shadow-md" style="background: linear-gradient(145deg, rgb(var(--accent-rgb) / 0.2), rgb(var(--accent-rgb) / 0.06) 45%, var(--panel-bg)); border-color: rgb(var(--accent-rgb) / 0.22); box-shadow: var(--panel-shadow);">
+        <div class="rounded-2xl border p-5 shadow-md" style="background: linear-gradient(145deg, rgb(100 116 139 / 0.2), rgb(100 116 139 / 0.06) 45%, var(--panel-bg)); border-color: rgb(100 116 139 / 0.22); box-shadow: var(--panel-shadow);">
             <div class="flex items-start justify-between">
                 <div>
-                    <p class="text-sm font-semibold text-[color:var(--page-muted)]">Active Internships</p>
-                    <p class="mt-2 text-3xl font-bold text-[color:var(--page-text)]">{{ $this->activeInternships() }}</p>
-                    <p class="mt-2 text-xs text-[color:var(--accent-700)]">Currently running</p>
+                    <p class="text-sm font-semibold text-[color:var(--page-muted)]">Ex Approved Internships</p>
+                    <p class="mt-2 text-3xl font-bold text-[color:var(--page-text)]">{{ $this->exApprovedInternships() }}</p>
+                    <p class="mt-2 text-xs text-slate-600">Completed internship history</p>
                 </div>
-                <div class="w-11 h-11 rounded-full bg-indigo-500 text-white flex items-center justify-center text-lg">🚀</div>
+                <div class="w-11 h-11 rounded-full bg-slate-500 text-white flex items-center justify-center text-lg">🗂️</div>
             </div>
         </div>
 

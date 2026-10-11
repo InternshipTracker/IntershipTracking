@@ -21,6 +21,7 @@ new #[Layout('layouts.app')] class extends Component
     public string $email = '';
     public string $password = '';
     public array $selected_classes = [];
+    public array $assignments = [];
 
     private function normalizeClassName(string $value): string
     {
@@ -110,6 +111,69 @@ new #[Layout('layouts.app')] class extends Component
         ));
     }
 
+    public function addAssignment(): void
+    {
+        if (! $this->hasValidClassSelection()) {
+            return;
+        }
+
+        $this->assignments[] = [
+            'department_id' => $this->selectedDepartmentId,
+            'course_id' => $this->activeCourseId,
+            'classes' => array_values($this->selected_classes),
+        ];
+        $this->selected_classes = [];
+        $this->activeCourseId = null;
+        $this->activeFilterClass = null;
+    }
+
+    public function startAdditionalAssignment(): void
+    {
+        if (! $this->selectedDepartmentId) {
+            $this->addError('selectedDepartmentId', 'Select a department first.');
+            return;
+        }
+
+        $this->activeCourseId = null;
+        $this->activeFilterClass = null;
+        $this->selected_classes = [];
+        $this->resetErrorBag(['activeCourseId', 'selected_classes']);
+    }
+
+    public function removeAssignment(int $index): void
+    {
+        unset($this->assignments[$index]);
+        $this->assignments = array_values($this->assignments);
+    }
+
+    private function allAssignments(): array
+    {
+        $assignments = $this->assignments;
+        if ($this->selected_classes !== []) {
+            $assignments[] = [
+                'department_id' => $this->selectedDepartmentId,
+                'course_id' => $this->activeCourseId,
+                'classes' => array_values($this->selected_classes),
+            ];
+        }
+        return $assignments;
+    }
+
+    private function assignmentRows(array $assignments): array
+    {
+        return collect($assignments)->flatMap(function (array $assignment) {
+            return collect($assignment['classes'])->map(fn (string $className) => [
+                'department_id' => $assignment['department_id'],
+                'department_course_id' => $assignment['course_id'],
+                'class_name' => $this->normalizeClassName($className),
+            ]);
+        })->unique(fn (array $row) => implode('|', [
+            $row['department_id'],
+            $row['department_course_id'],
+            $row['class_name'],
+        ]))->values()->all();
+    }
+
     private function activeCourse(): ?DepartmentCourse
     {
         if (! $this->activeCourseId) {
@@ -186,9 +250,12 @@ new #[Layout('layouts.app')] class extends Component
             'email' => ['required', 'email', 'max:255'],
         ];
 
-        $departmentId = $this->selectedDepartmentId;
-
-        if (! $this->hasValidClassSelection()) {
+        if ($this->selected_classes !== [] && ! $this->hasValidClassSelection()) {
+            return;
+        }
+        $assignments = $this->allAssignments();
+        if ($assignments === []) {
+            $this->addError('selected_classes', 'Please choose at least one class assignment.');
             return;
         }
 
@@ -202,15 +269,11 @@ new #[Layout('layouts.app')] class extends Component
                 'name' => $validated['name'],
                 'username' => $validated['username'],
                 'email' => $validated['email'],
-                'department_id' => $departmentId,
+                'department_id' => $assignments[0]['department_id'],
             ]);
 
             $teacher->teacherClasses()->delete();
-            $teacher->teacherClasses()->createMany(
-                collect($this->selected_classes)
-                    ->map(fn (string $className) => ['class_name' => $className])
-                    ->all()
-            );
+            $teacher->teacherClasses()->createMany($this->assignmentRows($assignments));
 
             if (filled($this->password)) {
                 $this->validate(['password' => ['string', Rules\Password::defaults()]]);
@@ -218,7 +281,7 @@ new #[Layout('layouts.app')] class extends Component
             }
 
             $updatedName = $teacher->name;
-            $this->reset(['editingId', 'name', 'username', 'email', 'password', 'selected_classes']);
+            $this->reset(['editingId', 'name', 'username', 'email', 'password', 'selected_classes', 'assignments']);
             session()->flash('status', "Updated teacher: {$updatedName}");
 
             return;
@@ -235,19 +298,15 @@ new #[Layout('layouts.app')] class extends Component
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => 'teacher',
-            'department_id' => $departmentId,
+            'department_id' => $assignments[0]['department_id'],
             'is_approved' => true,
             'approval_status' => 'approved',
         ]);
 
-        $teacher->teacherClasses()->createMany(
-            collect($this->selected_classes)
-                ->map(fn (string $className) => ['class_name' => $className])
-                ->all()
-        );
+        $teacher->teacherClasses()->createMany($this->assignmentRows($assignments));
 
         $addedName = $teacher->name;
-        $this->reset(['name', 'username', 'email', 'password', 'selected_classes']);
+        $this->reset(['name', 'username', 'email', 'password', 'selected_classes', 'assignments']);
         session()->flash('status', "Added teacher: {$addedName}");
     }
 
@@ -260,8 +319,21 @@ new #[Layout('layouts.app')] class extends Component
         $this->username = $teacher->username;
         $this->email = $teacher->email;
         $this->selectedDepartmentId = $teacher->department_id;
-        $this->selected_classes = $teacher->teacherClasses()->pluck('class_name')->map(fn (string $item) => strtoupper($item))->all();
+        $teacherClasses = $teacher->teacherClasses()->get();
+        $this->assignments = $teacherClasses
+            ->groupBy(fn ($item) => ($item->department_id ?? $teacher->department_id).'-'.$item->department_course_id)
+            ->map(function ($items) use ($teacher) {
+                $first = $items->first();
+                $departmentId = $first->department_id ?? $teacher->department_id;
+                return [
+                    'department_id' => $departmentId,
+                    'course_id' => $first->department_course_id ?? $this->inferCourseIdFromClass($first->class_name, $departmentId),
+                    'classes' => $items->pluck('class_name')->map(fn (string $item) => strtoupper($item))->values()->all(),
+                ];
+            })->values()->all();
+        $this->selected_classes = [];
         $this->activeCourseId = $this->inferCourseIdFromClass($this->selected_classes[0] ?? null, $teacher->department_id);
+        $this->activeCourseId = $this->assignments[0]['course_id'] ?? null;
         $this->password = '';
         
         $this->viewingProfileId = null;
@@ -269,7 +341,7 @@ new #[Layout('layouts.app')] class extends Component
 
     public function cancelEdit(): void
     {
-        $this->reset(['editingId', 'name', 'username', 'email', 'password', 'selected_classes']);
+        $this->reset(['editingId', 'name', 'username', 'email', 'password', 'selected_classes', 'assignments']);
     }
 
     public function delete(int $teacherId): void
@@ -316,9 +388,19 @@ new #[Layout('layouts.app')] class extends Component
         return User::query()
             ->with(['department', 'teacherClasses'])
             ->where('role', 'teacher')
-            ->where('department_id', $this->selectedDepartmentId)
             ->whereHas('teacherClasses', function ($classQuery) {
-                $classQuery->where('class_name', $this->activeFilterClass);
+                $classQuery
+                    ->where('class_name', $this->activeFilterClass)
+                    ->where(function ($assignmentQuery) {
+                        $assignmentQuery
+                            ->where('department_id', $this->selectedDepartmentId)
+                            ->orWhereNull('department_id');
+                    });
+            })
+            ->where(function ($teacherQuery) {
+                $teacherQuery
+                    ->where('department_id', $this->selectedDepartmentId)
+                    ->orWhereHas('teacherClasses', fn ($classQuery) => $classQuery->where('department_id', $this->selectedDepartmentId));
             })
             ->orderBy('name')
             ->get();
@@ -427,9 +509,9 @@ new #[Layout('layouts.app')] class extends Component
     <div class="bg-white shadow-xl rounded-2xl p-8 max-w-3xl mx-auto mt-8">
         <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
             <svg class="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
-            Add New Teacher
+            {{ $editingId ? 'Edit Teacher' : 'Add New Teacher' }}
         </h2>
-        <form wire:submit.prevent="save" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <form wire:submit="save" class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
                 <label class="block text-sm font-semibold mb-1">Name</label>
                 <div class="relative">
@@ -497,8 +579,55 @@ new #[Layout('layouts.app')] class extends Component
                 @endif
                 <x-input-error :messages="$errors->get('selected_classes')" class="mt-2" />
             </div>
+            @if ($assignments)
+                <div class="col-span-2 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <p class="text-sm font-semibold text-indigo-900">Added Department / Faculty Assignments</p>
+                        <button
+                            type="button"
+                            wire:click="startAdditionalAssignment"
+                            wire:loading.attr="disabled"
+                            wire:target="startAdditionalAssignment"
+                            class="rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 disabled:cursor-wait disabled:opacity-60"
+                        >
+                            <span wire:loading.remove wire:target="startAdditionalAssignment">Add Another Faculty</span>
+                            <span wire:loading wire:target="startAdditionalAssignment">Preparing...</span>
+                        </button>
+                    </div>
+                    <div class="mt-3 space-y-2">
+                        @foreach ($assignments as $index => $assignment)
+                            @php
+                                $assignmentDepartment = $this->departments()->firstWhere('id', $assignment['department_id']);
+                                $assignmentCourse = DepartmentCourse::find($assignment['course_id']);
+                            @endphp
+                            <div class="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm">
+                                <span class="text-slate-700">
+                                    <strong>{{ $assignmentDepartment?->name ?? '-' }}</strong>
+                                    · {{ $assignmentCourse?->normalizedCode() ?? 'Faculty' }}
+                                    · {{ implode(', ', $assignment['classes']) }}
+                                </span>
+                                <button type="button" wire:click="removeAssignment({{ $index }})" class="text-red-600 hover:underline">Remove</button>
+                            </div>
+                        @endforeach
+                    </div>
+                    <p class="mt-3 text-xs text-indigo-700">
+                        Select the same department above, choose another faculty such as ABC, select its classes, and add the assignment.
+                    </p>
+                </div>
+            @endif
+            @if ($selected_classes)
+                <div class="col-span-2">
+                    <button type="button" wire:click="addAssignment" wire:loading.attr="disabled" wire:target="addAssignment" class="rounded-lg border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:cursor-wait disabled:opacity-60">
+                        <span wire:loading.remove wire:target="addAssignment">Add This Department / Faculty Assignment</span>
+                        <span wire:loading wire:target="addAssignment">Adding assignment...</span>
+                    </button>
+                </div>
+            @endif
             <div class="col-span-2 flex items-center gap-4 mt-6">
-                <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-lg font-bold text-lg hover:bg-green-700 transition">{{ $editingId ? 'UPDATE TEACHER' : 'ADD TEACHER' }}</button>
+                <button type="submit" wire:loading.attr="disabled" wire:target="save" class="bg-green-600 text-white px-6 py-2 rounded-lg font-bold text-lg hover:bg-green-700 transition disabled:cursor-wait disabled:opacity-60">
+                    <span wire:loading.remove wire:target="save">{{ $editingId ? 'UPDATE TEACHER' : 'ADD TEACHER' }}</span>
+                    <span wire:loading wire:target="save">{{ $editingId ? 'UPDATING...' : 'ADDING...' }}</span>
+                </button>
                 @if ($editingId)
                     <button type="button" wire:click="cancelEdit" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-400">Cancel</button>
                 @endif
